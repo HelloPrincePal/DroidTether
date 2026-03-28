@@ -2,7 +2,6 @@ package usb
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/google/gousb"
