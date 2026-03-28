@@ -12,7 +12,7 @@ v1.0.0 = MVP complete and working on M1/M2/M3.
 
 ## v0.8.1 — 2026-03-28
 - Milestone: Legal & Transparency (The "Professional" Release)
-- What works: Added `LICENSE` (MIT), `PRIVACY.md`, and `CONTRIBUTING.md`. Verified full compatibility with **Android 16 (One UI 8.0)**. The project is now legally documented and ready for public contributions.
+- What works: Added `LICENSE` (MIT), `PRIVACY.md`, and `CONTRIBUTING.md`. Verified full compatibility with **Android 16 (One UI 8.0)** on **macOS Tahoe 26.3.1(a)**. The project is now legally documented and ready for public contributions.
 - Next: Finalize Homebrew Formula logic for `brew install` support.
 
 ## v0.8.0 — 2026-03-28

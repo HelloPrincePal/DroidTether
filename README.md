@@ -16,9 +16,11 @@ DroidTether is a lightweight userspace daemon that brings high-performance USB t
 
 ---
 
+## 🛠️ Verified Test Environment
+This project has been rigorously tested and confirmed working on:
 - **Phone**: Samsung Galaxy A55 📱
 - **Host**: MacBook Air M4 (Apple Silicon) 💻
-- **OS**: macOS Sequoia 26.3.2(a) ⛰️
+- **OS**: macOS Tahoe 26.3.1(a) ⛰️
 - **Android Support**: Android 16 (One UI 8.0) Verified ✅
 - **Connectivity**: Full bidirectional traffic + Global DNS resolution 🌐
 
