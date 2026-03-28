@@ -3,6 +3,9 @@
 **Seamless Android RNDIS USB tethering for Apple Silicon Macs.**
 *No Kernel Extensions. No SIP Changes. No Reboots.* 🚀
 
+![Downloads](https://img.shields.io/github/downloads/HelloPrincePal/DroidTether/total?style=for-the-badge&color=green)
+![Status](https://img.shields.io/github/v/release/HelloPrincePal/DroidTether?style=for-the-badge&color=blue)
+
 DroidTether is a lightweight userspace daemon that brings high-performance USB tethering to macOS by implementing the RNDIS protocol via `libusb` and routing traffic through the native `utun` interface.
 
 ---

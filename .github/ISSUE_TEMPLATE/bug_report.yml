@@ -1,0 +1,44 @@
+name: "🐛 Bug Report"
+description: "Report a connection or performance issue with DroidTether."
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping us improve DroidTether! 🚀
+  - type: input
+    id: device
+    attributes:
+      label: "📱 Your Android Device"
+      placeholder: "e.g., Samsung Galaxy S24, Google Pixel 9"
+    validations:
+      required: true
+  - type: input
+    id: android_version
+    attributes:
+      label: "🤖 Android Version"
+      placeholder: "e.g., Android 15 (One UI 7.0)"
+    validations:
+      required: true
+  - type: input
+    id: macos_version
+    attributes:
+      label: "💻 macOS Version"
+      placeholder: "e.g., macOS Sequoia 15.1"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "📜 Logs (Last 50 lines)"
+      description: "Run `tail -n 50 /var/log/droidtether.log` and paste it here."
+      placeholder: "Paste logs here..."
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "📝 Description of Issue"
+      description: "What exactly happened? (e.g. 'Connected but DNS failed')"
+      placeholder: "Describe your issue here..."
+    validations:
+      required: true
