@@ -10,6 +10,11 @@ v1.0.0 = MVP complete and working on M1/M2/M3.
 
 ---
 
+## v0.8.2 — 2026-03-28
+- Milestone: One-Line Installer Stability (Production Ready)
+- What works: `install.sh` now correctly handles macOS "Error 5" launchctl bootstrap failures, initializes log files with correct permissions, and ensures `root:wheel` binary ownership. Fixed `ethType` dispatch logic in `relay.go` using an idiomatic tagged switch.
+- Next: Finalize Homebrew Formula logic for `brew install` support.
+
 ## v0.8.1 — 2026-03-28
 - Milestone: Legal & Transparency (The "Professional" Release)
 - What works: Added `LICENSE` (MIT), `PRIVACY.md`, and `CONTRIBUTING.md`. Verified full compatibility with **Android 16 (One UI 8.0)** on **macOS Tahoe 26.3.1(a)**. The project is now legally documented and ready for public contributions.

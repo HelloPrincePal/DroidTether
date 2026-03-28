@@ -175,7 +175,8 @@ func (r *Relay) Start() error {
 							r.autoDetectMAC(ethPkt[6:12])
 
 							ethType := binary.BigEndian.Uint16(ethPkt[12:14])
-							if ethType == 0x0800 { // IPv4
+							switch ethType {
+							case 0x0800: // IPv4
 								rawIP := ethPkt[14:]
 								r.tryExtractDHCP(rawIP)
 
@@ -189,7 +190,7 @@ func (r *Relay) Start() error {
 								r.mu.Lock()
 								r.recvBytes += uint64(len(msg))
 								r.mu.Unlock()
-							} else if ethType == 0x0806 { // ARP
+							case 0x0806: // ARP
 								r.handleARP(ethPkt)
 							}
 						}

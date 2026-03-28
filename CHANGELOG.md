@@ -14,6 +14,16 @@ Format:
 
 ---
 
+## v0.8.2 — 2026-03-28
+
+### 2026-03-28 22:05 — 🛠️ Installation Robustness and Code Refactor
+- What: Updated `install.sh` with `launchctl` fallbacks, log initialization, and root permissions; refactored `relay.go` to use tagged switch for `ethType`.
+- Why: Fix "Error 5" on re-installation and ensure the background service has necessary permissions to modify network routes. Improved code maintainability.
+- Files: `install.sh`, `internal/daemon/relay.go`, `VERSIONS.md`, `CHANGELOG.md`
+- Breaking: no ✅
+
+---
+
 ---
 
 ## v0.8.1 — 2026-03-28

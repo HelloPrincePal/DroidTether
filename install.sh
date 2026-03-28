@@ -52,14 +52,20 @@ fi
 echo "→ Installing binary to /usr/local/bin (requires password)"
 sudo mkdir -p /usr/local/bin
 sudo mv "$TMP_DIR/droidtether" /usr/local/bin/droidtether
-sudo chmod +x /usr/local/bin/droidtether
+sudo chown root:wheel /usr/local/bin/droidtether
+sudo chmod 755 /usr/local/bin/droidtether
 
-# 5. Config Setup
+# 5. Config and Log Setup
 CONFIG_DIR="/etc/droidtether"
 if [[ ! -d "$CONFIG_DIR" ]]; then
   echo "→ Creating config directory at $CONFIG_DIR"
   sudo mkdir -p "$CONFIG_DIR"
 fi
+
+# Initialize log file with correct permissions
+echo "→ Initializing log file at /var/log/droidtether.log"
+sudo touch /var/log/droidtether.log
+sudo chmod 666 /var/log/droidtether.log
 
 # Download default config if not exists
 if [[ ! -f "$CONFIG_DIR/droidtether.toml" ]]; then
@@ -80,8 +86,13 @@ sudo chmod 644 "$PLIST_DEST"
 
 # 7. Start the Service
 echo "→ Starting DroidTether service"
+# Unload any existing version to avoid Error 5
 sudo launchctl bootout system "$PLIST_DEST" 2>/dev/null || true
-sudo launchctl bootstrap system "$PLIST_DEST"
+# Try modern bootstrap first, fallback to legacy load if needed
+if ! sudo launchctl bootstrap system "$PLIST_DEST" 2>/dev/null; then
+    echo "→ Bootstrap failed (standard for re-installs), using legacy load fallback..."
+    sudo launchctl load -w "$PLIST_DEST"
+fi
 
 # Cleanup
 rm -rf "$TMP_DIR"
