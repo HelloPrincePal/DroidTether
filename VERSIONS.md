@@ -10,6 +10,14 @@ v1.0.0 = MVP complete and working on M1/M2/M3.
 
 ---
 
+## v0.3.0 — 2026-03-28
+- Milestone: RNDIS handshake working (INIT/QUERY/SET)
+- What works: Raw USB Control transfers for RNDIS encapsulated commands; `INIT` handshake; `QUERY MAC` address retrieval; `SET` packet filter to enable promiscuous data mode. **Confirmed on real device.**
+- What's broken: No actual data transfer (bulk transfer) implemented yet.
+- Next: `internal/tun/utun.go` creation and bulk packet relay.
+
+---
+
 ## v0.2.0 — 2026-03-28
 - Milestone: USB device detection + hotplug watcher
 - What works: `libusb` device monitoring, RNDIS hardware identification, and background daemon. **Validated on real Samsung Galaxy hardware.**

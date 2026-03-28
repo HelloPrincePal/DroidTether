@@ -20,6 +20,22 @@ Format:
 
 ---
 
+## v0.3.0 — 2026-03-28
+
+### 2026-03-28 13:51 — Validated RNDIS Handshake on Live Device
+- What: Confirmed RNDIS `INIT`, `QUERY(MAC)`, and `SET` handshake works; retrieved real device MAC address (`ee211e71ab6a`); refined `gousb` field access and control transfer reliability.
+- Why: Complete Milestone v0.3.0; the device is now fully initialized and ready to send/receive network packets.
+- Files: `internal/rndis/rndis.go`, `internal/usb/device.go`, `internal/daemon/daemon.go`
+- Breaking: no
+
+### 2026-03-28 13:50 — Implement RNDIS Handshake State Machine
+- What: Built binary marshalling for `INIT/QUERY/SET` messages (`internal/rndis/messages.go`); implemented RNDIS state machine for `Handshake()` sequence; added `ControlCall` to `usb.Device`.
+- Why: Milestone v0.3.0; allow the daemon to put the phone into data mode and retrieve device MAC address.
+- Files: `internal/rndis/oids.go`, `internal/rndis/messages.go`, `internal/rndis/rndis.go`, `internal/usb/device.go`, `internal/daemon/daemon.go`
+- Breaking: no
+
+---
+
 ## v0.2.0 — 2026-03-28
 
 ### 2026-03-28 13:15 — Validated USB RNDIS Detection on Live Device

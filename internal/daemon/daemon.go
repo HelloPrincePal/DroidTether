@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/princePal/droidtether/config"
+	"github.com/princePal/droidtether/internal/rndis"
 	"github.com/princePal/droidtether/internal/usb"
 )
 
@@ -42,9 +43,15 @@ func (d *Daemon) Run() error {
 		log.Info().
 			Str("component", "daemon").
 			Msg("Android RNDIS device connected!")
-		// In the future:
-		// session := NewSession(dev)
-		// session.Start()
+		
+		session := rndis.NewSession(dev)
+		if err := session.Handshake(); err != nil {
+			log.Error().Str("component", "daemon").Err(err).Msg("RNDIS Handshake failed")
+			// Cleanup happens naturally via watcher detach
+		}
+		
+		// Wait a bit to verify logs in dev mode
+		time.Sleep(3 * time.Second)
 	})
 
 	watcher.OnDetach(func() {

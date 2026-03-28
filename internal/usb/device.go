@@ -10,6 +10,7 @@ type Device struct {
 	usbd         *gousb.Device
 	usbc         *gousb.Config
 	usbIntf      *gousb.Interface
+	InterfaceNum int
 }
 
 // NewDevice opens and claims the RNDIS interface on the provided gousb.Device.
@@ -55,9 +56,10 @@ func NewDevice(dev *gousb.Device) (*Device, error) {
 	}
 
 	return &Device{
-		usbd:    dev,
-		usbc:    usbc,
-		usbIntf: intf,
+		usbd:         dev,
+		usbc:         usbc,
+		usbIntf:      intf,
+		InterfaceNum: rndisInterfaceNum,
 	}, nil
 }
 
@@ -73,4 +75,27 @@ func (d *Device) Close() error {
 	}
 	// Note: We don't close d.usbd here, because the Watcher handles raw gousb.Device lifecycle.
 	return nil
+}
+// Control performs a vendor-specific control transfer.
+func (d *Device) Control(rType, request uint8, val, idx uint16, data []byte) (int, error) {
+	return d.usbd.Control(rType, request, val, idx, data)
+}
+
+// OpenBulkEndpoints returns the bulk IN and OUT endpoints for data transfer.
+// index is the bulk endpoint pair index.
+func (d *Device) OpenBulkEndpoints() (in *gousb.InEndpoint, out *gousb.OutEndpoint, err error) {
+	// Find bulk endpoints in the claimed interface
+	for _, ep := range d.usbIntf.Setting.Endpoints {
+		if ep.TransferType == gousb.TransferTypeBulk {
+			if ep.Direction == gousb.EndpointDirectionIn {
+				in, err = d.usbIntf.InEndpoint(ep.Number)
+			} else {
+				out, err = d.usbIntf.OutEndpoint(ep.Number)
+			}
+		}
+	}
+	if in == nil || out == nil {
+		return nil, nil, fmt.Errorf("could not find bulk endpoint pair")
+	}
+	return in, out, nil
 }
