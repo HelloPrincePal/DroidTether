@@ -7,8 +7,8 @@ on:
 
 jobs:
   release:
-    name: Build and Release
-    runs-on: macos-14  # Apple Silicon
+    name: Build and Release (Apple Silicon Only)
+    runs-on: macos-14
 
     steps:
       - uses: actions/checkout@v4
@@ -26,27 +26,17 @@ jobs:
 
       - name: Build arm64 (Apple Silicon)
         run: |
+          mkdir -p build
           GOARCH=arm64 GOOS=darwin CGO_ENABLED=1 \
             go build -ldflags="-X main.version=${{ github.ref_name }}" \
-            -o build/droidtether-darwin-arm64 ./cmd/droidtether
-          cd build && tar czf droidtether-darwin-arm64.tar.gz droidtether-darwin-arm64
-
-      - name: Build amd64 (Intel)
-        run: |
-          GOARCH=amd64 GOOS=darwin CGO_ENABLED=1 \
-            go build -ldflags="-X main.version=${{ github.ref_name }}" \
-            -o build/droidtether-darwin-amd64 ./cmd/droidtether
-          cd build && tar czf droidtether-darwin-amd64.tar.gz droidtether-darwin-amd64
-
-      - name: Compute SHA256
-        run: |
-          shasum -a 256 build/droidtether-darwin-arm64.tar.gz
-          shasum -a 256 build/droidtether-darwin-amd64.tar.gz
+            -o build/droidtether ./cmd/droidtether
+          cd build && tar czf droidtether-darwin-arm64.tar.gz droidtether
+          shasum -a 256 droidtether-darwin-arm64.tar.gz > droidtether-darwin-arm64.tar.gz.sha256
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             build/droidtether-darwin-arm64.tar.gz
-            build/droidtether-darwin-amd64.tar.gz
+            build/droidtether-darwin-arm64.tar.gz.sha256
           generate_release_notes: true
