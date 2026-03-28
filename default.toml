@@ -1,0 +1,75 @@
+# DroidTether — Default Configuration
+# File: /opt/homebrew/etc/droidtether/droidtether.toml
+# Docs: https://github.com/princePal/droidtether
+
+[usb]
+# How often to poll for new USB devices (milliseconds)
+poll_interval_ms = 500
+
+# Timeout when claiming USB interface (milliseconds)
+claim_timeout_ms = 2000
+
+# Detach kernel driver before claiming interface (almost always true)
+detach_kernel_driver = true
+
+# Additional VID/PID pairs not in the built-in list
+# Format: ["VID:PID", ...]  e.g. ["04e8:6863"]
+extra_vidpid = []
+
+
+[rndis]
+# Max transfer size negotiated with device (bytes)
+# Android phones typically cap at 16384
+max_transfer_size = 16384
+
+# Timeout for RNDIS control message responses (milliseconds)
+init_timeout_ms = 3000
+query_timeout_ms = 2000
+set_timeout_ms = 2000
+
+# Read buffer size for bulk IN endpoint (bytes)
+read_buffer_size = 65536
+
+
+[tun]
+# Name prefix for the utun interface
+# Actual name will be droidtether0, droidtether1, etc.
+# Note: macOS assigns utunN names; this is the ifconfig alias
+interface_name_prefix = "droidtether"
+
+# MTU for the utun interface
+mtu = 1500
+
+
+[dhcp]
+# Timeout for entire DORA sequence (milliseconds)
+timeout_ms = 5000
+
+# How many times to retry DORA before giving up
+retry_count = 3
+
+# Delay between retries (milliseconds)
+retry_delay_ms = 1000
+
+
+[route]
+# Set this interface as default route when tethered
+# Set to false if you only want the interface up without rerouting all traffic
+set_default_route = true
+
+# Metric for the injected default route (lower = preferred)
+route_metric = 100
+
+
+[logging]
+# Log level: debug | info | warn | error
+level = "info"
+
+# Log format: text (human-readable) | json (machine-readable)
+format = "text"
+
+# Log file path (empty = stdout)
+file = "/var/log/droidtether.log"
+
+# Whether to log raw packet hex dumps (very verbose, debug only)
+dump_packets = false

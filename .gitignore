@@ -1,0 +1,20 @@
+# Binary output
+/build/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# MacOS files
+.DS_Store
+
+# Go specific
+/vendor/
+go.sum
+*.test
+*.prof
+
+# Logs
+*.log
