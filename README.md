@@ -4,6 +4,16 @@
 
 Works on macOS Ventura, Sonoma, and Sequoia on M1/M2/M3/M4 Macs.
 
+### Verifying the Connection
+Once the daemon is running and shows `Virtual network interface created interface=utunX`:
+
+1.  **Check Interface Status**:
+    ```bash
+    ifconfig utunX  # e.g., ifconfig utun3
+    ```
+2.  **Monitor Logs**:
+    The daemon will stay alive until you unplug the phone. You can see it "heartbeat" every 30 seconds.
+
 ---
 
 ## Install

@@ -11,6 +11,7 @@ import (
 
 	"github.com/princePal/droidtether/config"
 	"github.com/princePal/droidtether/internal/rndis"
+	"github.com/princePal/droidtether/internal/tun"
 	"github.com/princePal/droidtether/internal/usb"
 )
 
@@ -47,19 +48,48 @@ func (d *Daemon) Run() error {
 		session := rndis.NewSession(dev)
 		if err := session.Handshake(); err != nil {
 			log.Error().Str("component", "daemon").Err(err).Msg("RNDIS Handshake failed")
-			// Cleanup happens naturally via watcher detach
+			return
 		}
-		
-		// Wait a bit to verify logs in dev mode
-		time.Sleep(3 * time.Second)
-	})
 
-	watcher.OnDetach(func() {
+		// Milestone v0.4.0: Create virtual network interface
+		iface, err := tun.OpenUTUN(0)
+		if err != nil {
+			log.Error().Str("component", "daemon").Err(err).Msg("Failed to create utun interface")
+			return
+		}
+		defer iface.Close()
+
 		log.Info().
 			Str("component", "daemon").
-			Msg("Android RNDIS device detached.")
-		// In the future:
-		// session.Stop()
+			Str("interface", iface.Name()).
+			Msg("Virtual network interface created and ACTIVE. You can now run 'ifconfig' on it.")
+
+		// Keep the session alive until the watcher signals detachment.
+		// For now, we'll just block on a channel that is closed when the phone is unplugged.
+		// In Milestone v0.5.0, this handles the Packet Relay loop.
+		
+		stopChan := make(chan bool)
+		watcher.OnDetach(func() {
+			log.Info().Str("component", "daemon").Msg("Android RNDIS device detached.")
+			close(stopChan)
+		})
+
+		// Simple stay-alive logger to show the pipe is still open
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+					log.Debug().Str("component", "daemon").Str("interface", iface.Name()).Msg("RNDIS session active")
+				case <-stopChan:
+					return
+				}
+			}
+		}()
+
+		// Block here until phone is detached
+		<-stopChan
 	})
 
 	// Start the USB hotplug watcher

@@ -10,6 +10,13 @@ v1.0.0 = MVP complete and working on M1/M2/M3.
 
 ---
 
+## v0.4.0 — 2026-03-28
+- Milestone: utun interface creation
+- What works: Native macOS virtual interface creation (`utun`). The daemon now spawns a real network interface on the Mac when the phone connects.
+- Next: Packet relay engine (Bulk transfer).
+
+---
+
 ## v0.3.0 — 2026-03-28
 - Milestone: RNDIS handshake working (INIT/QUERY/SET)
 - What works: Raw USB Control transfers for RNDIS encapsulated commands; `INIT` handshake; `QUERY MAC` address retrieval; `SET` packet filter to enable promiscuous data mode. **Confirmed on real device.**

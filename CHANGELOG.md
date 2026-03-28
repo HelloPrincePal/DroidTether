@@ -16,7 +16,11 @@ Format:
 
 ## [Unreleased]
 
-*(Add entries here as you work. Move to a version block on each git push.)*
+### 2026-03-28 14:00 — Implement utun creation on macOS
+- What: Created `internal/tun/utun_darwin.go` to support spawning virtual network interfaces via `AF_SYSTEM` / `SYSPROTO_CONTROL`; integrated into daemon callback.
+- Why: Milestone v0.4.0; enable the OS to talk to our daemon via a standard network handle.
+- Files: `internal/tun/utun.go`, `internal/tun/utun_darwin.go`, `internal/daemon/daemon.go`
+- Breaking: no
 
 ---
 
