@@ -79,22 +79,54 @@ sudo ./build/droidtether
 
 ## 🔍 Verifying Connectivity
 
-While the daemon is running, you can verify everything is working in another terminal:
+Once DroidTether is installed and your phone is connected, you can run these commands to verify the bridge is active:
 
-### 1. Check the Route 🛣️
+### 1. Check the Service Status ⚙️
+```bash
+sudo launchctl list | grep princePal
+# Expected: A process ID (number) should appear, e.g., "67337  0  com.princePal.droidtether"
+```
+
+### 2. Check the Network Interface 📡
+```bash
+ifconfig | grep -A 5 utun
+# Expected: You should see a 'utun' interface with an 'inet' address (e.g., 10.x.x.x)
+```
+
+### 3. Verify the Routing 🛣️
 ```bash
 route -n get google.com | grep interface
-# Should return: interface: utunX
+# Expected: interface: utunX (where X is your DroidTether interface number)
 ```
 
-### 2. Test DNS 📡
+### 4. Monitor Live Traffic 📜
 ```bash
-nslookup google.com
-# Should resolve via your phone's gateway (e.g., 10.215.9.141)
+tail -f /var/log/droidtether.log
+# Expected: "🚀 Traffic Monitor" logs showing received/sent data totals.
 ```
 
-### 3. Clean Exit 🛑
-Simply press **`Ctrl+C`** in the daemon window. DroidTether will instantly clean up your routes, reset your DNS, and close the virtual interface.
+### 5. Performance & Quality Test ⚡
+```bash
+ping -c 10 8.8.8.8
+# Expected: 0% packet loss and stable round-trip times.
+# Note: If latency is high, try switching your phone from 5G to 4G/LTE for better stability.
+```
+
+---
+
+## 🛑 Stopping & Uninstalling
+
+### Stop the Background Service
+If you want to stop the service momentarily without uninstalling:
+```bash
+sudo launchctl bootout system /Library/LaunchDaemons/com.princePal.droidtether.plist
+```
+
+### Complete Uninstall
+To completely remove DroidTether, its configuration, and the background service:
+```bash
+curl -sL https://raw.githubusercontent.com/HelloPrincePal/DroidTether/main/uninstall.sh | bash
+```
 
 ---
 
