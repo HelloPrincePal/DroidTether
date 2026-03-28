@@ -22,7 +22,7 @@ func NewSession(dev *usb.Device) *Session {
 }
 
 // Handshake performs the RNDIS INIT -> QUERY(MAC) -> SET(FILTER) sequence.
-func (s *Session) Handshake() error {
+func (s *Session) Handshake() ([]byte, error) {
 	log.Info().Str("component", "rndis").Msg("Starting RNDIS handshake...")
 
 	// 1. Send INIT
@@ -33,20 +33,20 @@ func (s *Session) Handshake() error {
 	}
 
 	if err := s.sendControl(initMsg.Marshal()); err != nil {
-		return fmt.Errorf("rndis: failed to send INIT: %w", err)
+		return nil, fmt.Errorf("rndis: failed to send INIT: %w", err)
 	}
 
 	initResp, err := s.receiveControl()
 	if err != nil {
-		return fmt.Errorf("rndis: failed to receive INIT_CMPLT: %w", err)
+		return nil, fmt.Errorf("rndis: failed to receive INIT_CMPLT: %w", err)
 	}
 
 	initCmplt, err := UnmarshalInitializeCmplt(initResp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if initCmplt.Status != StatusSuccess {
-		return fmt.Errorf("rndis: INIT failed with status 0x%08X", initCmplt.Status)
+		return nil, fmt.Errorf("rndis: INIT failed with status 0x%08X", initCmplt.Status)
 	}
 
 	log.Debug().
@@ -62,17 +62,17 @@ func (s *Session) Handshake() error {
 	}
 
 	if err := s.sendControl(queryMac.Marshal()); err != nil {
-		return fmt.Errorf("rndis: failed to query MAC: %w", err)
+		return nil, fmt.Errorf("rndis: failed to query MAC: %w", err)
 	}
 
 	queryResp, err := s.receiveControl()
 	if err != nil {
-		return fmt.Errorf("rndis: failed to receive MAC_QUERY_CMPLT: %w", err)
+		return nil, fmt.Errorf("rndis: failed to receive MAC_QUERY_CMPLT: %w", err)
 	}
 
 	macCmplt, err := UnmarshalQueryCmplt(queryResp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	log.Info().
 		Str("component", "rndis").
@@ -88,24 +88,24 @@ func (s *Session) Handshake() error {
 	}
 
 	if err := s.sendControl(setFilter.Marshal()); err != nil {
-		return fmt.Errorf("rndis: failed to set packet filter: %w", err)
+		return nil, fmt.Errorf("rndis: failed to set packet filter: %w", err)
 	}
 
 	setResp, err := s.receiveControl()
 	if err != nil {
-		return fmt.Errorf("rndis: failed to receive SET_CMPLT: %w", err)
+		return nil, fmt.Errorf("rndis: failed to receive SET_CMPLT: %w", err)
 	}
 
 	_, setStatus, err := UnmarshalSetCmplt(setResp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if setStatus != StatusSuccess {
-		return fmt.Errorf("rndis: SET filter failed with status 0x%08X", setStatus)
+		return nil, fmt.Errorf("rndis: SET filter failed with status 0x%08X", setStatus)
 	}
 
 	log.Info().Str("component", "rndis").Msg("RNDIS handshake complete. Device in DATA mode.")
-	return nil
+	return macCmplt.Payload, nil
 }
 
 // sendControl sends an encapsulated RNDIS command via USB control endpoint.

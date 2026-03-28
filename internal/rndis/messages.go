@@ -146,3 +146,45 @@ func UnmarshalSetCmplt(data []byte) (uint32, uint32, error) { // returns Request
 	}
 	return binary.LittleEndian.Uint32(data[8:12]), binary.LittleEndian.Uint32(data[12:16]), nil
 }
+
+// EncapsulatePacket wraps a raw Ethernet packet with an RNDIS header.
+func EncapsulatePacket(packet []byte) []byte {
+	headerLen := 44
+	totalLen := headerLen + len(packet)
+	// RNDIS packets should be padded to 8-byte boundaries for some devices
+	padding := (8 - (totalLen % 8)) % 8
+	
+	b := make([]byte, totalLen+padding)
+	binary.LittleEndian.PutUint32(b[0:4], MsgPacket)
+	binary.LittleEndian.PutUint32(b[4:8], uint32(totalLen+padding))
+	binary.LittleEndian.PutUint32(b[8:12], 36) // DataOffset (relative to byte 8)
+	binary.LittleEndian.PutUint32(b[12:16], uint32(len(packet)))
+	// Bytes 16-43 are reserved/optional fields (offset/length for OOB data, info, etc.)
+	// We leave them zeroed.
+	
+	copy(b[44:], packet)
+	return b
+}
+
+// DecapsulatePacket strips the RNDIS header and returns the raw Ethernet packet.
+func DecapsulatePacket(data []byte) ([]byte, error) {
+	if len(data) < 44 {
+		return nil, fmt.Errorf("packet: too short")
+	}
+	msgType := binary.LittleEndian.Uint32(data[0:4])
+	if msgType != MsgPacket {
+		return nil, fmt.Errorf("packet: not a data packet (0x%08X)", msgType)
+	}
+
+	dataOff := binary.LittleEndian.Uint32(data[8:12])
+	dataLen := binary.LittleEndian.Uint32(data[12:16])
+
+	start := int(8 + dataOff)
+	end := start + int(dataLen)
+
+	if end > len(data) {
+		return nil, fmt.Errorf("packet: payload out of bounds")
+	}
+
+	return data[start:end], nil
+}

@@ -16,6 +16,22 @@ Format:
 
 ## [Unreleased]
 
+*(Add entries here as you work. Move to a version block on each git push.)*
+
+---
+
+## v0.5.0 — 2026-03-28
+
+### 2026-03-28 14:35 — Implement Bidirectional Packet Relay Engine
+- What: Added `Relay` struct to bridge macOS `utun` packets and USB Bulk endpoints, complete with Ethernet and RNDIS encapsulation synthesis.
+- Why: Milestone v0.5.0; this is the core engine that actually moves data between the phone and the Mac.
+- Files: `internal/daemon/relay.go`, `internal/usb/device.go`, `internal/rndis/messages.go`
+- Breaking: yes (switched to asynchronous relay loops)
+
+---
+
+## v0.4.0 — 2026-03-28
+
 ### 2026-03-28 14:00 — Implement utun creation on macOS
 - What: Created `internal/tun/utun_darwin.go` to support spawning virtual network interfaces via `AF_SYSTEM` / `SYSPROTO_CONTROL`; integrated into daemon callback.
 - Why: Milestone v0.4.0; enable the OS to talk to our daemon via a standard network handle.

@@ -10,6 +10,13 @@ v1.0.0 = MVP complete and working on M1/M2/M3.
 
 ---
 
+## v0.5.0 — 2026-03-28
+- Milestone: Packet Relay Engine
+- What works: Bidirectional shuttle service over USB Bulk Endpoints. Reads IP packets from macOS `utun`, synthesizes Ethernet headers, wraps in RNDIS encapsulation, and pushes to Android. Strips RNDIS headers from Android replies and writes to `utun`.
+- Next: IP assignment and DHCP handling.
+
+---
+
 ## v0.4.0 — 2026-03-28
 - Milestone: utun interface creation
 - What works: Native macOS virtual interface creation (`utun`). The daemon now spawns a real network interface on the Mac when the phone connects.

@@ -46,7 +46,8 @@ func (d *Daemon) Run() error {
 			Msg("Android RNDIS device connected!")
 		
 		session := rndis.NewSession(dev)
-		if err := session.Handshake(); err != nil {
+		phoneMAC, err := session.Handshake()
+		if err != nil {
 			log.Error().Str("component", "daemon").Err(err).Msg("RNDIS Handshake failed")
 			return
 		}
@@ -62,33 +63,30 @@ func (d *Daemon) Run() error {
 		log.Info().
 			Str("component", "daemon").
 			Str("interface", iface.Name()).
-			Msg("Virtual network interface created and ACTIVE. You can now run 'ifconfig' on it.")
+			Msg("Virtual network interface created and ACTIVE.")
 
-		// Keep the session alive until the watcher signals detachment.
-		// For now, we'll just block on a channel that is closed when the phone is unplugged.
-		// In Milestone v0.5.0, this handles the Packet Relay loop.
-		
+		// Milestone v0.5.0: The Relay Engine
+		relay, err := NewRelay(dev, iface, phoneMAC)
+		if err != nil {
+			log.Error().Str("component", "daemon").Err(err).Msg("Failed to initialize Relay")
+			time.Sleep(2 * time.Second) // prevent busy loops on retry
+			return
+		}
+
 		stopChan := make(chan bool)
 		watcher.OnDetach(func() {
 			log.Info().Str("component", "daemon").Msg("Android RNDIS device detached.")
+			relay.Stop()
 			close(stopChan)
 		})
 
-		// Simple stay-alive logger to show the pipe is still open
-		ticker := time.NewTicker(30 * time.Second)
-		defer ticker.Stop()
-		go func() {
-			for {
-				select {
-				case <-ticker.C:
-					log.Debug().Str("component", "daemon").Str("interface", iface.Name()).Msg("RNDIS session active")
-				case <-stopChan:
-					return
-				}
-			}
-		}()
+		// Start the relay loop (blocks until error or stop)
+		if err := relay.Start(); err != nil {
+			log.Error().Str("component", "daemon").Err(err).Msg("Relay ended with error")
+			time.Sleep(1 * time.Second)
+		}
 
-		// Block here until phone is detached
+		// Wait here until phone is detached
 		<-stopChan
 	})
 
