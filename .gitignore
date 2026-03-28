@@ -17,3 +17,6 @@
 
 # Logs
 *.log
+
+# Scratch
+tmp/

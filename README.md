@@ -1,90 +1,88 @@
-# DroidTether
+# 📱 DroidTether
 
-**Android USB tethering for Apple Silicon Macs — no kernel extension, no SIP changes.**
+**Seamless Android RNDIS USB tethering for Apple Silicon Macs.**
+*No Kernel Extensions. No SIP Changes. No Reboots.* 🚀
 
-Works on macOS Ventura, Sonoma, and Sequoia on M1/M2/M3/M4 Macs.
-
-### Verifying the Connection
-Once the daemon is running and shows `Virtual network interface created interface=utunX`:
-
-1.  **Check Interface Status**:
-    ```bash
-    ifconfig utunX  # e.g., ifconfig utun3
-    ```
-2.  **Monitor Logs**:
-    The daemon will stay alive until you unplug the phone. You can see it "heartbeat" every 30 seconds.
+DroidTether is a lightweight userspace daemon that brings high-performance USB tethering to macOS by implementing the RNDIS protocol via `libusb` and routing traffic through the native `utun` interface.
 
 ---
 
-## Install
+## ✨ Why DroidTether?
 
-```bash
-brew tap princePal/droidtether
-brew install droidtether
-```
+- 🔒 **Zero System Security Changes**: Unlike HoRNDIS, DroidTether runs entirely in userspace. You don't need to disable System Integrity Protection (SIP) or allow reduced security mode.
+- ⚡ **Apple Silicon Native**: Built from the ground up for M1, M2, M3, and M4 Macs.
+- 🤖 **Samsung Friendly**: Includes a specialized workaround for Samsung's dynamic MAC address randomization on tethering interfaces.
+- 🔌 **Plug & Play**: Automatically detects your phone, performs the handshake, and configures your Mac's routing/DNS instantly.
 
-That's it. The daemon starts automatically at boot.
+---
 
-## Usage
+## 🛠️ Verified Test Environment
+This project has been rigorously tested and confirmed working on:
+- **Phone**: Samsung Galaxy A55 📱
+- **Host**: MacBook AI M4 (Apple Silicon) 💻
+- **OS**: macOS Tahoe 26.3.2(a) ⛰️
+- **Connectivity**: Full bidirectional traffic + DNS resolution 🌐
 
-1. Connect your Android phone via USB
-2. On your phone: **Settings → Network → Hotspot & Tethering → USB Tethering → ON**
-3. Internet routes through your phone. Done.
+---
 
-## How it works
+## 🏗️ Installation (Developer Build)
 
-DroidTether is a userspace daemon that:
-1. Detects Android RNDIS USB interfaces via **libusb** (no kernel driver required)
-2. Performs the RNDIS handshake to put the device into data mode
-3. Creates a macOS **utun** interface (the same mechanism VPNs use — built into macOS)
-4. Bridges packets between USB and utun in both directions
-5. Requests an IP via DHCP from the phone's built-in DHCP server
-6. Injects a default route so traffic flows through the phone
+Since this project is in active development, please build from source:
 
-No kernel extensions. No SIP changes. No reboots. Works on every M-series Mac.
+### 1. Prerequisites
+Ensure you have the following installed:
+- [Go](https://go.dev/dl/) (1.21+)
+- `libusb` (Install via `brew install libusb` if needed)
+- `pkg-config`
 
-## Uninstall
-
-```bash
-brew uninstall droidtether
-```
-
-## Config
-
-```bash
-# Edit config
-nano /opt/homebrew/etc/droidtether/droidtether.toml
-
-# View logs
-tail -f /var/log/droidtether.log
-```
-
-## Supported Devices
-
-Works with any Android phone that supports USB Tethering, including:
-- Samsung Galaxy (all models)
-- Google Pixel
-- OnePlus
-- Xiaomi
-- Any device matching USB RNDIS class (0xE0/0x01/0x03)
-
-## Background: Why does this exist?
-
-The classic solution was [HoRNDIS](https://github.com/jwise/HoRNDIS) — a kernel extension that hasn't been updated since 2018 and doesn't work on Apple Silicon. Apple's DriverKit replacement requires special entitlements that take months to obtain.
-
-DroidTether takes a different path: implement the RNDIS protocol entirely in userspace using libusb and route packets through macOS's built-in utun interface. No kernel involvement, no entitlements needed.
-
-## License
-
-MIT — © PrincePal
-
-## Contributing
-
-PRs welcome. Read [docs/PRD.md](docs/PRD.md) for the full product spec and [docs/LLM_GUIDE.md](docs/LLM_GUIDE.md) for the development guide.
-
+### 2. Build from Source
 ```bash
 git clone https://github.com/princePal/droidtether
 cd droidtether
 make build
-make test
 ```
+
+### 3. Run the Daemon
+```bash
+sudo ./build/droidtether
+```
+
+---
+
+## 📖 How to Use
+
+1. **Connect** your Android phone to your Mac via a USB-C cable.
+2. **Enable Tethering** on your phone:
+   - Go to **Settings** ⚙️
+   - Search for **Tethering**
+   - Toggle **USB Tethering** to **ON** ✅
+3. **Enjoy!** DroidTether will log `✨ Network auto-configured!`. Your Mac is now using your phone's internet.
+
+---
+
+## 🔍 Verifying Connectivity
+
+While the daemon is running, you can verify everything is working in another terminal:
+
+### 1. Check the Route 🛣️
+```bash
+route -n get google.com | grep interface
+# Should return: interface: utunX
+```
+
+### 2. Test DNS 📡
+```bash
+nslookup google.com
+# Should resolve via your phone's gateway (e.g., 10.215.9.141)
+```
+
+### 3. Clean Exit 🛑
+Simply press **`Ctrl+C`** in the daemon window. DroidTether will instantly clean up your routes, reset your DNS, and close the virtual interface.
+
+---
+
+## 📜 License
+MIT — © PrincePal
+
+## 🤝 Contributing
+Found a bug? Have a feature request for v1.0? Please open an issue or submit a PR!

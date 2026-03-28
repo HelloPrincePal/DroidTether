@@ -14,9 +14,61 @@ Format:
 
 ---
 
-## [Unreleased]
+## v0.7.0 — 2026-03-28
+
+### 2026-03-28 16:45 — Instant Teardown and Panic Fix
+- What: Resolved a shutdown deadlock by force-closing USB handles when the daemon stops; added nil-pointer checks to the USB watcher to prevent exit panics.
+- Why: Ensure the daemon exits immediately and cleanly on `Ctrl+C` even while waiting for network packets.
+- Files: `internal/daemon/relay.go`, `internal/usb/watcher.go`, `internal/daemon/daemon.go`
+- Breaking: no 🚀
+
+### 2026-03-28 16:35 — 🌐 DNS Auto-Configuration and Graceful Shutdown
+- What: Implemented `SetDNS` using `scutil` to automatically set phone gateway as system DNS; Added `sync.WaitGroup` to `Daemon` for robust session lifecycle management.
+- Why: Provide a true "plug-and-play" experience with seamless internet and clean interface/route teardown on exit. Tested ON Samsung A55.
+- Files: `internal/tun/utun.go`, `internal/tun/utun_darwin.go`, `internal/daemon/daemon.go`
+- Breaking: no ✅
+
+### 2026-03-28 16:25 — Default Route Injection on macOS
+- What: Implemented `SetDefaultRoute` via override routes (0/1 & 128/1) in `internal/tun/utun_darwin.go`; auto-injects on successful DHCP if `set_default_route` is true; added cleanup for these routes on daemon exit.
+- Why: Allow all system traffic to automatically flow through the tethered phone without manual routing commands.
+- Files: `internal/tun/utun.go`, `internal/tun/utun_darwin.go`, `internal/daemon/daemon.go`
+- Breaking: no
+
+### 2026-03-28 16:24 — Update Config Schema for Route Control
+- What: Expanded `Config` and `DHCPConfig` structs in `internal/config/config.go` to match the `default.toml` schema and support new routing features.
+- Why: Ensure configuration values can be properly parsed and used by the daemon.
+- Files: `internal/config/config.go`
+- Breaking: no
 
 *(Add entries here as you work. Move to a version block on each git push.)*
+
+---
+
+## v0.6.0 — 2026-03-28
+
+### 2026-03-28 16:18 — Samsung MAC Randomization Workaround
+- What: Auto-detect phone's real current MAC from received Ethernet traffic; also query `OID_802_3_CURRENT_ADDRESS` instead of `PERMANENT_ADDRESS`. Samsung devices use a randomized active MAC on the tethering interface that differs from the permanent address.
+- Why: Ethernet frames addressed to the wrong MAC were silently dropped by the phone's NIC, causing 100% packet loss despite correct IP/DHCP configuration.
+- Files: `internal/daemon/relay.go`, `internal/rndis/rndis.go`
+- Breaking: no
+
+### 2026-03-28 16:07 — Complete DHCP 4-Step Handshake
+- What: Implemented full DHCP negotiation (Discover→Offer→Request→ACK) with proper option parsing (TLV format). Dynamic interface configuration from DHCP-assigned IP. Gratuitous ARP announcement after lease confirmation.
+- Why: Android's `dnsmasq`/`iptables` requires a completed DHCP lease before accepting traffic from a client. Previous 2-step (Discover→Offer) left us as an unauthorized device.
+- Files: `internal/daemon/relay.go`, `internal/daemon/daemon.go`
+- Breaking: no
+
+### 2026-03-28 15:35 — DHCP Auto-Discovery for Randomized Subnets
+- What: Synthesized raw DHCP Discover packets over RNDIS to probe the phone's actual tethering subnet. Extracted `yiaddr` and server IP from DHCPOFFER to dynamically configure the macOS `utun` interface.
+- Why: Android 11+ randomizes the USB tethering IP subnet on every connection. Hardcoded `192.168.42.x` addresses were wrong.
+- Files: `internal/daemon/relay.go`, `internal/daemon/daemon.go`, `internal/tun/utun_darwin.go`
+- Breaking: yes (removed hardcoded IP configuration)
+
+### 2026-03-28 15:22 — ARP Responder and USB Stability
+- What: Built a dynamic ARP responder that answers phone's ARP queries for our DHCP-assigned IP. Removed RNDIS KeepAlive (crashed macOS libusb), replaced with dummy Bulk OUT ARP keepalives. Made USB IN read errors non-fatal.
+- Why: macOS `utun` is L3-only and cannot handle ARP. Without ARP responses, the phone couldn't route replies back to us. KeepAlive control transfers conflicted with concurrent Bulk IN reads on macOS.
+- Files: `internal/daemon/relay.go`, `internal/daemon/daemon.go`
+- Breaking: no
 
 ---
 

@@ -10,6 +10,19 @@ v1.0.0 = MVP complete and working on M1/M2/M3.
 
 ---
 
+## v0.7.0 — 2026-03-28
+- Milestone: DNS Automation & Graceful Shutdown
+- What works: Automatic DNS configuration via `scutil` (macOS). The system now uses the phone's DNS gateway immediately. Added a `WaitGroup`-based shutdown to the `Daemon` to ensure all routes and tunnel interfaces are cleanly removed when stopping. 
+- Next: Move toward v1.0.0 after community testing.
+
+## v0.6.0 — 2026-03-28
+- Milestone: Full network connectivity — DHCP + ARP + Ping working
+- What works: Complete 4-step DHCP handshake (Discover→Offer→Request→ACK) with Android's randomized subnet. Dynamic ARP responder answers phone's ARP queries for our assigned IP. Samsung MAC randomization workaround auto-detects the phone's real current MAC from live traffic. Gratuitous ARP pre-populates phone's ARP cache. Bidirectional ICMP ping confirmed at ~5.9ms avg latency with 0% packet loss.
+- What's broken: No default route injection yet (internet doesn't flow through phone). IP is hardcoded to DHCP-assigned values.
+- Next: Default route injection, DNS forwarding, internet connectivity through phone.
+
+---
+
 ## v0.5.0 — 2026-03-28
 - Milestone: Packet Relay Engine
 - What works: Bidirectional shuttle service over USB Bulk Endpoints. Reads IP packets from macOS `utun`, synthesizes Ethernet headers, wraps in RNDIS encapsulation, and pushes to Android. Strips RNDIS headers from Android replies and writes to `utun`.

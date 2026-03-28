@@ -151,12 +151,10 @@ func UnmarshalSetCmplt(data []byte) (uint32, uint32, error) { // returns Request
 func EncapsulatePacket(packet []byte) []byte {
 	headerLen := 44
 	totalLen := headerLen + len(packet)
-	// RNDIS packets should be padded to 8-byte boundaries for some devices
-	padding := (8 - (totalLen % 8)) % 8
 	
-	b := make([]byte, totalLen+padding)
+	b := make([]byte, totalLen)
 	binary.LittleEndian.PutUint32(b[0:4], MsgPacket)
-	binary.LittleEndian.PutUint32(b[4:8], uint32(totalLen+padding))
+	binary.LittleEndian.PutUint32(b[4:8], uint32(totalLen))
 	binary.LittleEndian.PutUint32(b[8:12], 36) // DataOffset (relative to byte 8)
 	binary.LittleEndian.PutUint32(b[12:16], uint32(len(packet)))
 	// Bytes 16-43 are reserved/optional fields (offset/length for OOB data, info, etc.)

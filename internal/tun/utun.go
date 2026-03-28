@@ -8,4 +8,7 @@ import (
 type Interface interface {
 	io.ReadWriteCloser
 	Name() string
+	Configure(localIP, remoteIP string) error
+	SetDefaultRoute(gateway string) error
+	SetDNS(dnsServers []string) error
 }

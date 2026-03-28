@@ -13,6 +13,7 @@ type Config struct {
 	RNDIS   RNDISConfig   `toml:"rndis"`
 	TUN     TUNConfig     `toml:"tun"`
 	DHCP    DHCPConfig    `toml:"dhcp"`
+	Route   RouteConfig   `toml:"route"`
 	Logging LoggingConfig `toml:"logging"`
 }
 
@@ -32,8 +33,14 @@ type TUNConfig struct {
 }
 
 type DHCPConfig struct {
-	TimeoutMS  int `toml:"timeout_ms"`
-	RetryCount int `toml:"retry_count"`
+	TimeoutMS    int `toml:"timeout_ms"`
+	RetryCount   int `toml:"retry_count"`
+	RetryDelayMS int `toml:"retry_delay_ms"`
+}
+
+type RouteConfig struct {
+	SetDefaultRoute bool `toml:"set_default_route"`
+	RouteMetric     int  `toml:"route_metric"`
 }
 
 type LoggingConfig struct {

@@ -41,6 +41,11 @@ func (w *Watcher) OnDetach(fn func()) {
 	w.onDetachFn = fn
 }
 
+// Context returns the watcher's current context.
+func (w *Watcher) Context() context.Context {
+	return w.ctx
+}
+
 // Start begins a polling loop for finding new RNDIS devices.
 func (w *Watcher) Start() {
 	go w.pollLoop()
@@ -138,9 +143,11 @@ func (w *Watcher) pollLoop() {
 								Msg("Device detached workflow triggered")
 							w.onDetachFn()
 						}
-						// Clean up handles.
-						w.activeDeviceHandle.Close()
-						w.activeDeviceHandle = nil
+						// Clean up handles if not already cleaned by Stop()
+						if w.activeDeviceHandle != nil {
+							w.activeDeviceHandle.Close()
+							w.activeDeviceHandle = nil
+						}
 					}()
 				}
 			}

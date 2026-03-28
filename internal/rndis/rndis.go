@@ -1,6 +1,7 @@
 package rndis
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -58,7 +59,7 @@ func (s *Session) Handshake() ([]byte, error) {
 	s.requestID++
 	queryMac := &RemoteNdisQueryMsg{
 		RequestID: s.requestID,
-		OID:       OID_802_3_PERMANENT_ADDRESS,
+		OID:       OID_802_3_CURRENT_ADDRESS,
 	}
 
 	if err := s.sendControl(queryMac.Marshal()); err != nil {
@@ -108,6 +109,30 @@ func (s *Session) Handshake() ([]byte, error) {
 	return macCmplt.Payload, nil
 }
 
+// KeepAlive sends a REMOTE_NDIS_KEEPALIVE_MSG to keep the connection active.
+func (s *Session) KeepAlive() error {
+	s.requestID++
+	b := make([]byte, 12)
+	binary.LittleEndian.PutUint32(b[0:4], MsgKeepAlive)
+	binary.LittleEndian.PutUint32(b[4:8], 12)
+	binary.LittleEndian.PutUint32(b[8:12], s.requestID)
+
+	if err := s.sendControl(b); err != nil {
+		return fmt.Errorf("rndis: failed to send KEEPALIVE: %w", err)
+	}
+
+	resp, err := s.receiveControl()
+	if err != nil {
+		return fmt.Errorf("rndis: failed to receive KEEPALIVE_CMPLT: %w", err)
+	}
+
+	if len(resp) < 4 || binary.LittleEndian.Uint32(resp[0:4]) != MsgKeepAliveCmplt {
+		return fmt.Errorf("rndis: unexpected keepalive response type")
+	}
+
+	return nil
+}
+
 // sendControl sends an encapsulated RNDIS command via USB control endpoint.
 func (s *Session) sendControl(data []byte) error {
 	// bmRequestType = 0x21 (Host-to-Device | Class | Interface)
@@ -116,22 +141,17 @@ func (s *Session) sendControl(data []byte) error {
 	return err
 }
 
-// receiveControl retrieves an encapsulated RNDIS response via USB control endpoint.
+// receiveControl retrieves an encapsulated RNDIS response.
 func (s *Session) receiveControl() ([]byte, error) {
-	buf := make([]byte, 1024)
+	buf := make([]byte, 2048)
 	
-	// RNDIS requires polling for the response. Usually we should wait for 
-	// a Notification on the interrupt endpoint first, but many devices
-	// allow direct polling on EP0 after a short delay.
-	for i := 0; i < 5; i++ {
-		time.Sleep(20 * time.Millisecond)
-		// bmRequestType = 0xA1 (Device-to-Host | Class | Interface)
-		// bRequest = 0x01 (GET_ENCAPSULATED_RESPONSE)
+	// Direct polling with generous retries for macOS
+	for i := 0; i < 10; i++ {
+		time.Sleep(10 * time.Millisecond)
 		n, err := s.dev.Control(0xA1, 0x01, 0, uint16(s.dev.InterfaceNum), buf)
 		if err == nil && n > 0 {
 			return buf[:n], nil
 		}
-		// Code -3 or similar might mean it's busy, so we retry.
 	}
-	return nil, fmt.Errorf("rndis: timeout waiting for response")
+	return nil, fmt.Errorf("rndis: timeout waiting for control response")
 }

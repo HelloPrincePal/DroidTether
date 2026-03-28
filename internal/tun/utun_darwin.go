@@ -3,6 +3,7 @@ package tun
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -31,11 +32,87 @@ func (i *utunInterface) Write(p []byte) (n int, err error) {
 }
 
 func (i *utunInterface) Close() error {
+	// Cleanup routes we added
+	_ = exec.Command("route", "delete", "-net", "0.0.0.0/1").Run()
+	_ = exec.Command("route", "delete", "-net", "128.0.0.0/1").Run()
+
+	// Cleanup DNS we added
+	_ = exec.Command("scutil", "-w", "State:/Network/Service/droidtether/DNS").Run()
+	cmd := exec.Command("scutil")
+	stdin, _ := cmd.StdinPipe()
+	go func() {
+		defer stdin.Close()
+		fmt.Fprintln(stdin, "open")
+		fmt.Fprintln(stdin, "remove State:/Network/Service/droidtether/DNS")
+		fmt.Fprintln(stdin, "quit")
+	}()
+	_ = cmd.Run()
+
 	return i.f.Close()
 }
-
 func (i *utunInterface) Name() string {
 	return i.name
+}
+
+// Configure sets the IP addresses for the utun interface using the 'ifconfig' command.
+func (i *utunInterface) Configure(localIP, remoteIP string) error {
+	// Formula: ifconfig <name> <local> <remote> up
+	cmd := exec.Command("ifconfig", i.name, localIP, remoteIP, "up")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("ifconfig failed: %w (output: %s)", err, string(out))
+	}
+	return nil
+}
+
+// SetDefaultRoute adds "more specific" default routes (0.0.0.0/1 and 128.0.0.0/1)
+// to override the existing default route without deleting it.
+func (i *utunInterface) SetDefaultRoute(gateway string) error {
+	// 0.0.0.0/1
+	cmd1 := exec.Command("route", "add", "-net", "0.0.0.0/1", "-interface", i.name)
+	if out, err := cmd1.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to add 0/1 route: %w (output: %s)", err, string(out))
+	}
+
+	// 128.0.0.0/1
+	cmd2 := exec.Command("route", "add", "-net", "128.0.0.0/1", "-interface", i.name)
+	if out, err := cmd2.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to add 128/1 route: %w (output: %s)", err, string(out))
+	}
+
+	return nil
+}
+
+// SetDNS sets the system DNS to the phone gateway (or other provided servers)
+// using 'scutil' on macOS.
+func (i *utunInterface) SetDNS(dnsServers []string) error {
+	if len(dnsServers) == 0 {
+		return nil
+	}
+
+	cmd := exec.Command("scutil")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		defer stdin.Close()
+		fmt.Fprintln(stdin, "open")
+		fmt.Fprintln(stdin, "d.init")
+		fmt.Fprint(stdin, "d.add ServerAddresses *")
+		for _, s := range dnsServers {
+			fmt.Fprintf(stdin, " %s", s)
+		}
+		fmt.Fprintln(stdin)
+		fmt.Fprintln(stdin, "set State:/Network/Service/droidtether/DNS")
+		fmt.Fprintln(stdin, "quit")
+	}()
+
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("scutil DNS set failed: %w (output: %s)", err, string(out))
+	}
+
+	return nil
 }
 
 // OpenUTUN creates a new utun interface on macOS.

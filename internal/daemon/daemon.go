@@ -3,6 +3,7 @@ package daemon
 import (
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 // Daemon represents the main executing body of DroidTether.
 type Daemon struct {
 	cfg *config.Config
+	wg  sync.WaitGroup
 }
 
 // New creates a new Daemon with the loaded configuration.
@@ -41,6 +43,8 @@ func (d *Daemon) Run() error {
 	watcher := usb.NewWatcher(pollInterval)
 
 	watcher.OnAttach(func(dev *usb.Device) {
+		d.wg.Add(1)
+		defer d.wg.Done()
 		log.Info().
 			Str("component", "daemon").
 			Msg("Android RNDIS device connected!")
@@ -52,42 +56,68 @@ func (d *Daemon) Run() error {
 			return
 		}
 
-		// Milestone v0.4.0: Create virtual network interface
 		iface, err := tun.OpenUTUN(0)
 		if err != nil {
 			log.Error().Str("component", "daemon").Err(err).Msg("Failed to create utun interface")
 			return
 		}
+
+		// Ensure everything closes when watcher is stopped
+		go func() {
+			<-watcher.Context().Done()
+			iface.Close()
+		}()
 		defer iface.Close()
 
-		log.Info().
-			Str("component", "daemon").
-			Str("interface", iface.Name()).
-			Msg("Virtual network interface created and ACTIVE.")
-
-		// Milestone v0.5.0: The Relay Engine
-		relay, err := NewRelay(dev, iface, phoneMAC)
+		relay, err := NewRelay(watcher.Context(), dev, iface, phoneMAC)
 		if err != nil {
 			log.Error().Str("component", "daemon").Err(err).Msg("Failed to initialize Relay")
 			time.Sleep(2 * time.Second) // prevent busy loops on retry
 			return
 		}
 
-		stopChan := make(chan bool)
-		watcher.OnDetach(func() {
-			log.Info().Str("component", "daemon").Msg("Android RNDIS device detached.")
-			relay.Stop()
-			close(stopChan)
-		})
+		relay.OnDHCP = func(gateway, client string) {
+			log.Info().Str("component", "daemon").Str("gateway", gateway).Str("client", client).Msg("🔥 DHCPOFFER Intercepted! Auto-configuring network...")
+			if err := iface.Configure(client, gateway); err != nil {
+				log.Warn().Str("component", "daemon").Err(err).Msg("Failed to auto-configure interface IP")
+			} else {
+				log.Info().Str("component", "daemon").Msg("✨ Network auto-configured! Ping should now work natively!")
 
-		// Start the relay loop (blocks until error or stop)
-		if err := relay.Start(); err != nil {
-			log.Error().Str("component", "daemon").Err(err).Msg("Relay ended with error")
-			time.Sleep(1 * time.Second)
+				// Inject default route if configured
+				if d.cfg.Route.SetDefaultRoute {
+					log.Info().Str("component", "daemon").Msg("Rerouting all system traffic through DroidTether...")
+					if err := iface.SetDefaultRoute(gateway); err != nil {
+						log.Warn().Str("component", "daemon").Err(err).Msg("Failed to set default route")
+					}
+
+					// Set DNS to phone gateway
+					log.Info().Str("component", "daemon").Str("dns", gateway).Msg("Setting system DNS to phone gateway...")
+					if err := iface.SetDNS([]string{gateway, "8.8.8.8"}); err != nil {
+						log.Warn().Str("component", "daemon").Err(err).Msg("Failed to set DNS")
+					}
+				}
+			}
 		}
 
-		// Wait here until phone is detached
-		<-stopChan
+		// Start the relay loop in its own goroutine
+		errChan := make(chan error, 1)
+		go func() {
+			errChan <- relay.Start()
+		}()
+
+		// Wait here until the relay ends (cable pull) OR daemon is shutting down (Ctrl+C)
+		select {
+		case err := <-errChan:
+			if err != nil {
+				log.Warn().Str("component", "daemon").Err(err).Msg("Relay session ended")
+			} else {
+				log.Info().Str("component", "daemon").Msg("Relay session closed")
+			}
+		case <-watcher.Context().Done():
+			log.Info().Str("component", "daemon").Msg("Daemon shutting down — stopping active relay...")
+			relay.Stop()
+			<-errChan // Wait for cleanup to finish
+		}
 	})
 
 	// Start the USB hotplug watcher
@@ -109,6 +139,8 @@ func (d *Daemon) Run() error {
 
 	// Clean up
 	watcher.Stop()
+	log.Info().Msg("Waiting for active sessions to close...")
+	d.wg.Wait()
 	log.Info().Msg("Shutdown complete.")
 
 	return nil
