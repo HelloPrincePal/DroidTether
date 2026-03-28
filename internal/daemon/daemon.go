@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -78,10 +79,16 @@ func (d *Daemon) Run() error {
 
 		relay.OnDHCP = func(gateway, client string) {
 			log.Info().Str("component", "daemon").Str("gateway", gateway).Str("client", client).Msg("🔥 DHCPOFFER Intercepted! Auto-configuring network...")
-			if err := iface.Configure(client, gateway); err != nil {
+			
+			mtuStr := fmt.Sprintf("%d", d.cfg.TUN.MTU)
+			if d.cfg.TUN.MTU <= 0 {
+				mtuStr = "1400" // fallback
+			}
+
+			if err := iface.Configure(client, gateway, mtuStr); err != nil {
 				log.Warn().Str("component", "daemon").Err(err).Msg("Failed to auto-configure interface IP")
 			} else {
-				log.Info().Str("component", "daemon").Msg("✨ Network auto-configured! Ping should now work natively!")
+				log.Info().Str("component", "daemon").Str("mtu", mtuStr).Msg("✨ Network auto-configured! Ping should now work natively!")
 
 				// Inject default route if configured
 				if d.cfg.Route.SetDefaultRoute {
@@ -90,9 +97,9 @@ func (d *Daemon) Run() error {
 						log.Warn().Str("component", "daemon").Err(err).Msg("Failed to set default route")
 					}
 
-					// Set DNS to phone gateway
-					log.Info().Str("component", "daemon").Str("dns", gateway).Msg("Setting system DNS to phone gateway...")
-					if err := iface.SetDNS([]string{gateway, "8.8.8.8"}); err != nil {
+					// Set DNS to Google (Primary) and phone gateway (Secondary)
+					log.Info().Str("component", "daemon").Msg("Setting system DNS to 8.8.8.8 (Google)...")
+					if err := iface.SetDNS([]string{"8.8.8.8", gateway}); err != nil {
 						log.Warn().Str("component", "daemon").Err(err).Msg("Failed to set DNS")
 					}
 				}

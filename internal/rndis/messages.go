@@ -149,18 +149,18 @@ func UnmarshalSetCmplt(data []byte) (uint32, uint32, error) { // returns Request
 
 // EncapsulatePacket wraps a raw Ethernet packet with an RNDIS header.
 func EncapsulatePacket(packet []byte) []byte {
-	headerLen := 44
+	headerLen := 48 // Use 48 bytes for 8-byte alignment (44 + 4 padding)
 	totalLen := headerLen + len(packet)
 	
 	b := make([]byte, totalLen)
 	binary.LittleEndian.PutUint32(b[0:4], MsgPacket)
 	binary.LittleEndian.PutUint32(b[4:8], uint32(totalLen))
-	binary.LittleEndian.PutUint32(b[8:12], 36) // DataOffset (relative to byte 8)
+	binary.LittleEndian.PutUint32(b[8:12], 40) // DataOffset (relative to byte 8: 8 + 40 = 48)
 	binary.LittleEndian.PutUint32(b[12:16], uint32(len(packet)))
-	// Bytes 16-43 are reserved/optional fields (offset/length for OOB data, info, etc.)
+	// Bytes 16-47 are reserved/optional fields (offset/length for OOB data, info, etc.)
 	// We leave them zeroed.
 	
-	copy(b[44:], packet)
+	copy(b[48:], packet)
 	return b
 }
 

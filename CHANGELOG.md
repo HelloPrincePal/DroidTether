@@ -16,6 +16,12 @@ Format:
 
 ## v0.7.0 — 2026-03-28
 
+### 2026-03-28 18:35 — 🌐 DNS Routing and MTU Stability Fixes
+- What: Updated `scutil` script to use `SupplementalMatchDomains` for forced DNS resolution; lowered default `TUN.MTU` to 1400; added support for configuring MTU and filtered MacOS IPv6 broadcasts.
+- Why: Pinging worked but DNS failed because macOS was skipping our `utun` for lookups. Web traffic failed due to USB fragmentation limits on Android exceeding 1400 MTU.
+- Files: `internal/tun/utun_darwin.go`, `internal/tun/utun.go`, `internal/daemon/daemon.go`, `internal/daemon/relay.go`, `config/default.toml`
+- Breaking: no ✅
+
 ### 2026-03-28 16:45 — Instant Teardown and Panic Fix
 - What: Resolved a shutdown deadlock by force-closing USB handles when the daemon stops; added nil-pointer checks to the USB watcher to prevent exit panics.
 - Why: Ensure the daemon exits immediately and cleanly on `Ctrl+C` even while waiting for network packets.

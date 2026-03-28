@@ -12,7 +12,7 @@ v1.0.0 = MVP complete and working on M1/M2/M3.
 
 ## v0.7.0 — 2026-03-28
 - Milestone: DNS Automation & Graceful Shutdown
-- What works: Automatic DNS configuration via `scutil` (macOS). The system now uses the phone's DNS gateway immediately. Added a `WaitGroup`-based shutdown to the `Daemon` to ensure all routes and tunnel interfaces are cleanly removed when stopping. 
+- What works: Automatic DNS configuration via `scutil` (macOS) with forced SupplementalMatchDomains. The system now uses the phone's DNS gateway immediately for all lookups. Added a `WaitGroup`-based shutdown to the `Daemon` to ensure all routes and tunnel interfaces are cleanly removed when stopping. `TUN.MTU` is automatically reduced to `1400` to support standard Android USB RNDIS fragmentation limits natively. Internet web traffic and DNS fully working.
 - Next: Move toward v1.0.0 after community testing.
 
 ## v0.6.0 — 2026-03-28

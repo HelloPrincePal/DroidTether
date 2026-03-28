@@ -38,7 +38,7 @@ read_buffer_size = 65536
 interface_name_prefix = "droidtether"
 
 # MTU for the utun interface
-mtu = 1500
+mtu = 1400
 
 
 [dhcp]

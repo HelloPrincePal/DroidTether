@@ -44,6 +44,7 @@ func (i *utunInterface) Close() error {
 		defer stdin.Close()
 		fmt.Fprintln(stdin, "open")
 		fmt.Fprintln(stdin, "remove State:/Network/Service/droidtether/DNS")
+		fmt.Fprintln(stdin, "remove State:/Network/Global/DNS")
 		fmt.Fprintln(stdin, "quit")
 	}()
 	_ = cmd.Run()
@@ -54,10 +55,10 @@ func (i *utunInterface) Name() string {
 	return i.name
 }
 
-// Configure sets the IP addresses for the utun interface using the 'ifconfig' command.
-func (i *utunInterface) Configure(localIP, remoteIP string) error {
-	// Formula: ifconfig <name> <local> <remote> up
-	cmd := exec.Command("ifconfig", i.name, localIP, remoteIP, "up")
+// Configure sets the IP addresses and MTU for the utun interface using the 'ifconfig' command.
+func (i *utunInterface) Configure(localIP, remoteIP, mtu string) error {
+	// Formula: ifconfig <name> <local> <remote> mtu <val> up
+	cmd := exec.Command("ifconfig", i.name, localIP, remoteIP, "mtu", mtu, "up")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("ifconfig failed: %w (output: %s)", err, string(out))
 	}
@@ -104,7 +105,17 @@ func (i *utunInterface) SetDNS(dnsServers []string) error {
 			fmt.Fprintf(stdin, " %s", s)
 		}
 		fmt.Fprintln(stdin)
+		// SupplementalMatchDomains set to empty string tells macOS to use these servers for ALL lookups.
+		fmt.Fprintln(stdin, "d.add SupplementalMatchDomains * \"\"")
+		fmt.Fprintln(stdin, "d.add SupplementalMatchOrders * 10")
 		fmt.Fprintln(stdin, "set State:/Network/Service/droidtether/DNS")
+		fmt.Fprintln(stdin, "set State:/Network/Global/DNS")
+		
+		// Force Global IPv4 state to 'Online' via our utun interface
+		fmt.Fprintln(stdin, "d.init")
+		fmt.Fprintf(stdin, "d.add Router %s\n", dnsServers[len(dnsServers)-1]) // use phone gateway
+		fmt.Fprintf(stdin, "d.add Interface %s\n", i.name)
+		fmt.Fprintln(stdin, "set State:/Network/Global/IPv4")
 		fmt.Fprintln(stdin, "quit")
 	}()
 

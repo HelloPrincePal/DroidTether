@@ -33,6 +33,10 @@ type Relay struct {
 	// Dynamic state set after DHCP
 	mu       sync.Mutex
 	clientIP net.IP
+	
+	// Traffic stats
+	sentBytes uint64
+	recvBytes uint64
 }
 
 // NewRelay creates a new bidirectional relay.
@@ -91,6 +95,9 @@ func (r *Relay) Start() error {
 
 				// Drop non-IPv4 packets (e.g. IPv6 from macOS background traffic)
 				if rawIP[0]>>4 != 4 {
+					if rawIP[0]>>4 == 6 {
+						log.Trace().Str("component", "relay").Msg("Dropping IPv6 packet (unsupported)")
+					}
 					continue
 				}
 
@@ -114,6 +121,10 @@ func (r *Relay) Start() error {
 					errChan <- fmt.Errorf("relay: usb write error: %w", err)
 					return
 				}
+
+				r.mu.Lock()
+				r.sentBytes += uint64(len(pkt))
+				r.mu.Unlock()
 			}
 		}
 	}()
@@ -172,7 +183,12 @@ func (r *Relay) Start() error {
 								outBuf := make([]byte, 4+len(rawIP))
 								binary.BigEndian.PutUint32(outBuf[0:4], 2)
 								copy(outBuf[4:], rawIP)
-								_, _ = r.tun.Write(outBuf)
+								if _, err := r.tun.Write(outBuf); err != nil {
+									log.Error().Str("component", "relay").Err(err).Msg("Failed to write to utun interface")
+								}
+								r.mu.Lock()
+								r.recvBytes += uint64(len(msg))
+								r.mu.Unlock()
 							} else if ethType == 0x0806 { // ARP
 								r.handleARP(ethPkt)
 							}
@@ -206,6 +222,17 @@ func (r *Relay) Start() error {
 				return
 			case <-ticker.C:
 				_, _ = r.usbOut.Write(dummyPkt)
+				
+				// Log traffic stats every 5s
+				r.mu.Lock()
+				s, rv := r.sentBytes, r.recvBytes
+				r.mu.Unlock()
+				if s > 0 || rv > 0 {
+					log.Info().Str("component", "relay").
+						Str("sent", fmt.Sprintf("%.2f KB", float64(s)/1024)).
+						Str("received", fmt.Sprintf("%.2f KB", float64(rv)/1024)).
+						Msg("🚀 Traffic Monitor")
+				}
 			}
 		}
 	}()
