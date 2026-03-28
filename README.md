@@ -16,33 +16,48 @@ DroidTether is a lightweight userspace daemon that brings high-performance USB t
 
 ---
 
-## 🛠️ Verified Test Environment
-This project has been rigorously tested and confirmed working on:
 - **Phone**: Samsung Galaxy A55 📱
-- **Host**: MacBook AI M4 (Apple Silicon) 💻
-- **OS**: macOS Tahoe 26.3.2(a) ⛰️
-- **Connectivity**: Full bidirectional traffic + DNS resolution 🌐
+- **Host**: MacBook Air M4 (Apple Silicon) 💻
+- **OS**: macOS Sequoia 26.3.2(a) ⛰️
+- **Android Support**: Android 16 (One UI 8.0) Verified ✅
+- **Connectivity**: Full bidirectional traffic + Global DNS resolution 🌐
 
 ---
 
-## 🏗️ Installation (Developer Build)
+## 🚀 Quick Install (Apple Silicon only)
 
-Since this project is in active development, please build from source:
+Open your terminal and paste this one-liner to install DroidTether and start the background service:
+
+```bash
+curl -sL https://raw.githubusercontent.com/HelloPrincePal/DroidTether/main/install.sh | bash
+```
+
+### 🗑️ Uninstall
+To completely remove DroidTether, its configuration, and the background service:
+
+```bash
+curl -sL https://raw.githubusercontent.com/HelloPrincePal/DroidTether/main/uninstall.sh | bash
+```
+
+---
+
+## 🏗️ Developer Build (Source)
+
+If you prefer to build from source:
 
 ### 1. Prerequisites
 Ensure you have the following installed:
 - [Go](https://go.dev/dl/) (1.21+)
-- `libusb` (Install via `brew install libusb` if needed)
-- `pkg-config`
+- `libusb` and `pkg-config` (Install via `brew install libusb pkg-config`)
 
 ### 2. Build from Source
 ```bash
-git clone https://github.com/princePal/droidtether
-cd droidtether
+git clone https://github.com/HelloPrincePal/DroidTether
+cd DroidTether
 make build
 ```
 
-### 3. Run the Daemon
+### 3. Run Manually
 ```bash
 sudo ./build/droidtether
 ```

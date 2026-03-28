@@ -4,12 +4,16 @@ Complete annotated repository layout. Every file listed here should exist before
 Files marked `[LLM]` are optimized for inclusion in AI context windows.
 
 ```
-droidtether/
+DroidTether/
 │
 ├── README.md                        # Public-facing project README
 ├── LICENSE                          # MIT
-├── Makefile                         # Dev commands: make build, make dev, make test, make release
-├── go.mod                           # Go module (github.com/princePal/droidtether)
+├── PRIVACY.md                      # Privacy policy
+├── CONTRIBUTING.md                  # How to contribute
+├── install.sh                       # One-line installer
+├── uninstall.sh                     # One-line uninstaller
+├── Makefile                         # Build/Test commands
+├── go.mod                           # Go dependencies
 │
 ├── docs/
 │   ├── PRD.md                       # [LLM] Full product requirements (this project's source of truth)

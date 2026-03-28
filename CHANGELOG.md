@@ -14,6 +14,32 @@ Format:
 
 ---
 
+---
+
+## v0.8.1 — 2026-03-28
+
+### 2026-03-28 20:04 — ⚖️ Legal and Transparency Documentation
+- What: Added `LICENSE` (MIT), `PRIVACY.md`, and `CONTRIBUTING.md` to the root directory.
+- Why: Establish trust by explicitly stating our "zero-data" privacy policy and defining open-source contribution guidelines.
+- Files: `LICENSE`, `PRIVACY.md`, `CONTRIBUTING.md`
+- Breaking: no ✅
+
+## v0.7.2 — 2026-03-28
+
+### 2026-03-28 19:24 — 🟢 Automated Distribution Support (Apple Silicon)
+- What: Updated `release.yml` with `pkg-config` and `contents: write` permissions; verified successful GitHub Actions build and binary artifact generation.
+- Why: Enable "one-liner" installation where GitHub automatically compiles and hosts the DroidTether binary for users.
+- Files: `.github/workflows/release.yml`
+- Breaking: no ✅
+
+## v0.7.1 — 2026-03-28
+
+### 2026-03-28 19:12 — 📦 One-Line Installer and CLI Improvements
+- What: Created `install.sh` and `uninstall.sh` for `curl | bash` setup; added `--config` flag to `main.go`; standardized `launchd` path to `/usr/local/bin` and `/etc/droidtether`.
+- Why: Transition from a "developer-only" build tool to a consumer-ready utility with frictionless setup/teardown.
+- Files: `install.sh`, `uninstall.sh`, `cmd/droidtether/main.go`, `launchd/com.princePal.droidtether.plist`, `README.md`
+- Breaking: yes (standardized system paths) 🚀
+
 ## v0.7.0 — 2026-03-28
 
 ### 2026-03-28 18:35 — 🌐 DNS Routing and MTU Stability Fixes

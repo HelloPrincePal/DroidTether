@@ -8,9 +8,9 @@
   <key>ProgramArguments</key>
   <array>
     <!-- Default paths: Apple Silicon Homebrew. For Intel, replace /opt/homebrew with /usr/local -->
-    <string>/opt/homebrew/bin/droidtether</string>
+    <string>/usr/local/bin/droidtether</string>
     <string>--config</string>
-    <string>/opt/homebrew/etc/droidtether/droidtether.toml</string>
+    <string>/etc/droidtether/droidtether.toml</string>
   </array>
   <key>RunAtLoad</key>
   <true/>

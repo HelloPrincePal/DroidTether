@@ -14,6 +14,7 @@ var version = "dev"
 
 func main() {
 	showVersion := flag.Bool("version", false, "print version and exit")
+	configPath := flag.String("config", "", "path to config file")
 	flag.Parse()
 
 	if *showVersion {
@@ -24,13 +25,12 @@ func main() {
 	fmt.Printf("droidtether v%s starting...\n", version)
 
 	// Load configuration
-	// Load from system paths first, fallback to local source tree config
-	cfg, err := config.Load("")
+	cfg, err := config.Load(*configPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "droidtether: system config not found, trying local config/default.toml...\n")
+		fmt.Fprintf(os.Stderr, "droidtether: config not found or unreadable, trying local default.toml...\n")
 		cfg, err = config.Load("config/default.toml")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "droidtether: failed to load config: %v\n", err)
+			fmt.Fprintf(os.Stderr, "droidtether: failed to load any configuration: %v\n", err)
 			os.Exit(1)
 		}
 	}

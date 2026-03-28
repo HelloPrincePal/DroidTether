@@ -10,10 +10,22 @@ v1.0.0 = MVP complete and working on M1/M2/M3.
 
 ---
 
-## v0.7.0 — 2026-03-28
-- Milestone: DNS Automation & Graceful Shutdown
-- What works: Automatic DNS configuration via `scutil` (macOS) with forced SupplementalMatchDomains. The system now uses the phone's DNS gateway immediately for all lookups. Added a `WaitGroup`-based shutdown to the `Daemon` to ensure all routes and tunnel interfaces are cleanly removed when stopping. `TUN.MTU` is automatically reduced to `1400` to support standard Android USB RNDIS fragmentation limits natively. Internet web traffic and DNS fully working.
-- Next: Move toward v1.0.0 after community testing.
+## v0.8.1 — 2026-03-28
+- Milestone: Legal & Transparency (The "Professional" Release)
+- What works: Added `LICENSE` (MIT), `PRIVACY.md`, and `CONTRIBUTING.md`. Verified full compatibility with **Android 16 (One UI 8.0)**. The project is now legally documented and ready for public contributions.
+- Next: Finalize Homebrew Formula logic for `brew install` support.
+
+## v0.8.0 — 2026-03-28
+- Milestone: One-Line Binary Distribution (Apple Silicon)
+- What works: Automated GitHub Release pipeline for `darwin/arm64`. `install.sh` and `uninstall.sh` scripts enable one-liner setup via `curl`. Standardized system paths used for the background daemon (`/usr/local/bin` and `/etc/droidtether`). The project is now effectively "Plug & Play" for any M-series Mac user without requiring a local Go compiler.
+
+## v0.7.2 — 2026-03-28
+- Milestone: Release Automation Permissions Fix
+- What works: Explicit `contents: write` permissions and `pkg-config` dependency added to GitHub Actions to allow successful CGO compilation and automated asset uploading.
+
+## v0.7.1 — 2026-03-28
+- Milestone: "One-Touch" Installation Scripts
+- What works: Created `install.sh` at repository root. Added `--config` flag to `droidtether` binary. Standardized CLI to support global system configurations.
 
 ## v0.6.0 — 2026-03-28
 - Milestone: Full network connectivity — DHCP + ARP + Ping working
