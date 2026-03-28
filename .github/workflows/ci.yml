@@ -19,8 +19,8 @@ jobs:
         with:
           go-version: '1.22'
 
-      - name: Install libusb
-        run: brew install libusb
+      - name: Install dependencies (libusb + pkg-config)
+        run: brew install libusb pkg-config
 
       - name: Download dependencies
         run: go mod download
