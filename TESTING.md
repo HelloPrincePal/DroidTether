@@ -155,6 +155,19 @@ sudo launchctl kickstart -k system/com.princePal.droidtether
 
 ---
 
+## 🚀 Performance Benchmarks (Real-world)
+
+Use these results as the "Gold Standard" to verify future optimizations or regressions.
+
+| Device | Network | MAC/Host | OS | Result |
+|--------|---------|----------|----|--------|
+| **Galaxy S24** | **Airtel 5G** | MacBook Air M4 | Android 16 | **290 Mbps / 29ms Ping** |
+| Galaxy A55 | Jio 5G | MacBook Air M4 | Android 16 | 180 Mbps / 35ms Ping |
+
+*Tests performed via fast.com and `ping 8.8.8.8`. Zero packet loss verified.*
+
+---
+
 ## What to Test When
 
 | Stage | Run |

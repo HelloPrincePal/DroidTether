@@ -20,12 +20,13 @@ DroidTether is a lightweight userspace daemon that brings high-performance USB t
 ---
 
 ## 🛠️ Verified Test Environment
-This project has been rigorously tested and confirmed working on:
-- **Phone**: Samsung Galaxy A55 📱
-- **Host**: MacBook Air M4 (Apple Silicon) 💻
-- **OS**: macOS Tahoe 26.3.1(a) ⛰️
-- **Android Support**: Android 16 (One UI 8.0) Verified ✅
-- **Connectivity**: Full bidirectional traffic + Global DNS resolution 🌐
+
+| Phone Name | Android Version | Host Name | OS Version | Results |
+| :--- | :--- | :--- | :--- | :--- |
+| Samsung Galaxy S24 | 16 (One UI 8.0) | MacBook Air M4 | macOS Tahoe | **290 Mbps** 🚀 |
+| Samsung Galaxy A55 | 16 (One UI 8.0) | MacBook Air M4 | macOS Tahoe | Stable ✅ |
+
+*Verified with full bidirectional traffic and global DNS resolution.*
 
 ---
 
@@ -130,6 +131,22 @@ To completely remove DroidTether, its configuration, and the background service:
 ```bash
 curl -sL https://raw.githubusercontent.com/HelloPrincePal/DroidTether/main/uninstall.sh | bash
 ```
+
+---
+
+## ⚠️ A Note on Apple's `networkQuality`
+
+If you try to run the `networkQuality` command while using DroidTether, you may encounter an "offline" error. This is a known macOS behavior where high-level system utilities sometimes only bind to physical hardware services (WiFi/Ethernet).
+
+**Don't worry!** Real-world high-performance tasks like **Gaming, 4K Streaming, and Video Calling** use the underlying data plane and are **completely unaffected**. For accurate benchmarks, we recommend using `ping 8.8.8.8` or [fast.com](https://fast.com) in your browser.
+
+---
+
+## 👤 Connect with the Author
+
+Feel free to reach out or follow the project’s journey! 🚀
+
+🔗 **LinkedIn**: [Prince Pal](https://www.linkedin.com/in/theprincepal/)  
 
 ---
 
