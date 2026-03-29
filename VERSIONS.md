@@ -10,6 +10,11 @@ v1.0.0 = MVP complete and working on M1/M2/M3.
 
 ---
 
+## v0.8.3 — 2026-03-29
+- Milestone: Transparency & Verification (The "Trust" Release)
+- What works: Added `.github/SECURITY.md` for private vulnerability reports. Enhanced `README.md` and `PRIVACY.md` with sections on **Why sudo is required**, **Audit Notes** (~2k lines of Go), and **Local-only connectivity**. Verified commit signing via SSH is now active.
+- Next: Finalize Homebrew Formula logic for `brew install` support.
+
 ## v0.8.2 — 2026-03-28
 - Milestone: One-Line Installer Stability (Production Ready)
 - What works: `install.sh` now correctly handles macOS "Error 5" launchctl bootstrap failures, initializes log files with correct permissions, and ensures `root:wheel` binary ownership. Fixed `ethType` dispatch logic in `relay.go` using an idiomatic tagged switch.

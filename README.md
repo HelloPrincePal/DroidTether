@@ -19,6 +19,17 @@ DroidTether is a lightweight userspace daemon that brings high-performance USB t
 
 ---
 
+## 🛡️ Transparency & Privacy
+DroidTether is built on a "local-only" model.
+- 📂 **100% Open Source**: Every line of code is available for audit in this repository.
+- 🚫 **No Telemetry**: No tracking, no analytics, and no "call-home" features. 
+- 🔒 **Local Connectivity**: All networking happens strictly between your Mac and your Android device. No external servers are involved in the packet relay process.
+- 🕵️ **Log Privacy**: Logs reside only on your local machine at `/var/log/droidtether.log` for debugging purposes.
+
+> 📝 **Audit Note**: The entire core logic of DroidTether is contained in less than **2,000 lines of Go code**, making it exceptionally easy to audit for security and transparency. We believe in simplicity and clear source code as the ultimate form of trust.
+
+---
+
 ## 🛠️ Verified Test Environment
 
 | Phone Name | Android Version | Host Name | OS Version | Results |
@@ -67,6 +78,16 @@ make build
 ```bash
 sudo ./build/droidtether
 ```
+
+---
+
+## 🔑 Why `sudo` is Required?
+Because DroidTether operates at the system network level, it requires elevated privileges for specific operations:
+1. **Network Interface Management**: Creating and configuring the virtual `utun` interface on macOS is a kernel-restricted task.
+2. **Routing Table Injection**: Updating your Mac's routing table to prioritize the phone's internet connection requires superuser permissions.
+3. **Log Management**: Writing operational logs to `/var/log/droidtether.log` for system-wide transparency.
+
+*DroidTether performs these tasks purely in userspace—no persistent kernel extensions are installed.*
 
 ---
 
@@ -154,4 +175,6 @@ Feel free to reach out or follow the project’s journey! 🚀
 MIT — © PrincePal
 
 ## 🤝 Contributing
-Found a bug? Have a feature request for v1.0? Please open an issue or submit a PR!
+Found a bug? Have a feature request for v1.0? Please open an issue or submit a PR! 
+
+**⚠️ Security**: For security vulnerabilities, please refer to our [Security Policy](.github/SECURITY.md) for private reporting instructions.

@@ -8,6 +8,8 @@ If you find a bug, please [open an issue](https://github.com/HelloPrincePal/Droi
 *   Your Android device model and OS version.
 *   Relevant logs from `/var/log/droidtether.log`.
 
+**⚠️ Important**: For security vulnerabilities, please do **NOT** open a public issue. See our [Security Policy](.github/SECURITY.md) for private reporting instructions.
+
 ### 2. Suggest a Feature ✨
 Have an idea for v1.0? Please open a feature request issue! We're particularly interested in testing with more Android device manufacturers.
 

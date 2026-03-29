@@ -18,5 +18,10 @@ DroidTether has **no telemetry, no analytics, and no "call-home" features**. It 
 
 ---
 
+### 📝 Audit & Transparency
+To ensure full trust, the entire core logic is implemented in less than **2,000 lines of Go code**. This makes it easy for any security researcher or user to audit the source code in a single afternoon. We believe transparency is the foundation of security.
+
+---
+
 ### Questions?
 If you have any questions about this Privacy Policy or how DroidTether handles your data, please open an issue in the [GitHub repository](https://github.com/HelloPrincePal/DroidTether).
