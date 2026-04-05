@@ -6,11 +6,17 @@ on:
       - 'v*'
 
 jobs:
-  release:
-    name: Build and Release (Apple Silicon Only)
-    runs-on: macos-14
-    permissions:
-      contents: write
+  build:
+    name: Build (${{ matrix.arch }})
+    strategy:
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+          - arch: amd64
+            runner: macos-13
+
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - uses: actions/checkout@v4
@@ -20,42 +26,55 @@ jobs:
         with:
           go-version: '1.22'
 
-      - name: Install dependencies (libusb + pkg-config)
+      - name: Install dependencies
         run: brew install libusb pkg-config
 
       - name: Run tests
         run: go test -race ./...
 
-      - name: Build binaries (arm64 + amd64)
+      - name: Build binary
         run: |
-          mkdir -p build    
-          GOARCH=arm64 GOOS=darwin CGO_ENABLED=1 \
+          mkdir -p build
+
+          GOARCH=${{ matrix.arch }} GOOS=darwin CGO_ENABLED=1 \
             go build -ldflags="-X main.version=${{ github.ref_name }}" \
             -o build/droidtether ./cmd/droidtether
 
-          cp build/droidtether build/droidtether-arm64
-          tar -C build -czf build/droidtether-darwin-arm64.tar.gz droidtether-arm64
+          tar -C build -czf build/droidtether-darwin-${{ matrix.arch }}.tar.gz droidtether
 
-          GOARCH=amd64 GOOS=darwin CGO_ENABLED=1 \
-            go build -ldflags="-X main.version=${{ github.ref_name }}" \
-            -o build/droidtether ./cmd/droidtether
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: droidtether-${{ matrix.arch }}
+          path: build/droidtether-darwin-${{ matrix.arch }}.tar.gz
 
-          cp build/droidtether build/droidtether-amd64
-          tar -C build -czf build/droidtether-darwin-amd64.tar.gz droidtether-amd64
+
+  release:
+    name: Finalize Release
+    needs: build
+    runs-on: macos-14
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
 
       - name: Generate SHA256 hashes
         id: sha
         run: |
-          ARM_HASH=$(shasum -a 256 build/droidtether-darwin-arm64.tar.gz | cut -d ' ' -f1)
-          AMD_HASH=$(shasum -a 256 build/droidtether-darwin-amd64.tar.gz | cut -d ' ' -f1)
+          ARM_HASH=$(shasum -a 256 droidtether-arm64/droidtether-darwin-arm64.tar.gz | cut -d ' ' -f1)
+          AMD_HASH=$(shasum -a 256 droidtether-amd64/droidtether-darwin-amd64.tar.gz | cut -d ' ' -f1)
 
           echo "arm=$ARM_HASH" >> $GITHUB_OUTPUT
-          echo "amd=$AMD_HASH" >> $GITHUB_OUTPUT    
+          echo "amd=$AMD_HASH" >> $GITHUB_OUTPUT
 
       - name: Update Homebrew Formula
         run: |
           sed -i '' "0,/REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE/s//${{ steps.sha.outputs.arm }}/" Formula/droidtether.rb
-          sed -i '' "0,/REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE/s//${{ steps.sha.outputs.amd }}/" Formula/droidtether.rb    
+          sed -i '' "0,/REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE/s//${{ steps.sha.outputs.amd }}/" Formula/droidtether.rb
 
       - name: Commit updated formula
         run: |
@@ -64,12 +83,12 @@ jobs:
 
           git add Formula/droidtether.rb
           git commit -m "Update SHA256 (arm64 + amd64) for ${{ github.ref_name }}" || echo "No changes"
-          git push    
+          git push
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            build/droidtether-darwin-arm64.tar.gz
-            build/droidtether-darwin-amd64.tar.gz
+            droidtether-arm64/droidtether-darwin-arm64.tar.gz
+            droidtether-amd64/droidtether-darwin-amd64.tar.gz
           generate_release_notes: true
