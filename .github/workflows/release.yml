@@ -26,19 +26,50 @@ jobs:
       - name: Run tests
         run: go test -race ./...
 
-      - name: Build arm64 (Apple Silicon)
+      - name: Build binaries (arm64 + amd64)
         run: |
-          mkdir -p build
+          mkdir -p build    
           GOARCH=arm64 GOOS=darwin CGO_ENABLED=1 \
             go build -ldflags="-X main.version=${{ github.ref_name }}" \
             -o build/droidtether ./cmd/droidtether
-          cd build && tar czf droidtether-darwin-arm64.tar.gz droidtether
-          shasum -a 256 droidtether-darwin-arm64.tar.gz > droidtether-darwin-arm64.tar.gz.sha256
+
+          cp build/droidtether build/droidtether-arm64
+          tar -C build -czf build/droidtether-darwin-arm64.tar.gz droidtether-arm64
+
+          GOARCH=amd64 GOOS=darwin CGO_ENABLED=1 \
+            go build -ldflags="-X main.version=${{ github.ref_name }}" \
+            -o build/droidtether ./cmd/droidtether
+
+          cp build/droidtether build/droidtether-amd64
+          tar -C build -czf build/droidtether-darwin-amd64.tar.gz droidtether-amd64
+
+      - name: Generate SHA256 hashes
+        id: sha
+        run: |
+          ARM_HASH=$(shasum -a 256 build/droidtether-darwin-arm64.tar.gz | cut -d ' ' -f1)
+          AMD_HASH=$(shasum -a 256 build/droidtether-darwin-amd64.tar.gz | cut -d ' ' -f1)
+
+          echo "arm=$ARM_HASH" >> $GITHUB_OUTPUT
+          echo "amd=$AMD_HASH" >> $GITHUB_OUTPUT    
+
+      - name: Update Homebrew Formula
+        run: |
+          sed -i '' "0,/REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE/s//${{ steps.sha.outputs.arm }}/" Formula/droidtether.rb
+          sed -i '' "0,/REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE/s//${{ steps.sha.outputs.amd }}/" Formula/droidtether.rb    
+
+      - name: Commit updated formula
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+
+          git add Formula/droidtether.rb
+          git commit -m "Update SHA256 (arm64 + amd64) for ${{ github.ref_name }}" || echo "No changes"
+          git push    
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             build/droidtether-darwin-arm64.tar.gz
-            build/droidtether-darwin-arm64.tar.gz.sha256
+            build/droidtether-darwin-amd64.tar.gz
           generate_release_notes: true
