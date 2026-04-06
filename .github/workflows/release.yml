@@ -35,6 +35,37 @@ jobs:
           cd build && tar czf droidtether-darwin-arm64.tar.gz droidtether
           shasum -a 256 droidtether-darwin-arm64.tar.gz > droidtether-darwin-arm64.tar.gz.sha256
 
+      - name: Calculate SHA256 hashes
+        id: sha256
+        run: |
+          # Extract SHA256 for arm64
+          ARM64_SHA256=$(cut -d' ' -f1 build/droidtether-darwin-arm64.tar.gz.sha256)
+          echo "arm64_sha256=${ARM64_SHA256}" >> $GITHUB_OUTPUT
+          echo "ARM64 SHA256: ${ARM64_SHA256}"
+
+      - name: Update Homebrew Formula
+        run: |
+          # Get version from tag (remove 'v' prefix)
+          VERSION="${GITHUB_REF_NAME#v}"
+          
+          # Update version in formula
+          sed -i '' "s/version \".*\"/version \"${VERSION}\"/" Formula/droidtether.rb
+          
+          # Update SHA256 for arm64
+          sed -i '' "s/sha256 \"REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE\"/sha256 \"${{ steps.sha256.outputs.arm64_sha256 }}\"/" Formula/droidtether.rb
+          
+          echo "Updated Formula with:"
+          echo "  Version: ${VERSION}"
+          echo "  ARM64 SHA256: ${{ steps.sha256.outputs.arm64_sha256 }}"
+
+      - name: Commit updated Formula
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/droidtether.rb
+          git commit -m "chore: update Homebrew formula for ${{ github.ref_name }}"
+          git push
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
