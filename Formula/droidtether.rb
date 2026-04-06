@@ -1,17 +1,17 @@
 class DroidTether < Formula
     desc "Android USB tethering for Apple Silicon Macs — no kext, no SIP changes"
-    homepage "https://github.com/princePal/droidtether"
+    homepage "https://github.com/HelloPrincePal/DroidTether"
     version "1.0.0"
   
     # ARM binary (Apple Silicon — M1/M2/M3/M4)
     on_arm do
-      url "https://github.com/princePal/droidtether/releases/download/v#{version}/droidtether-darwin-arm64.tar.gz"
+      url "https://github.com/HelloPrincePal/DroidTether/releases/download/v#{version}/droidtether-darwin-arm64.tar.gz"
       sha256 "REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE"
     end
   
     # Intel binary (fallback)
     on_intel do
-      url "https://github.com/princePal/droidtether/releases/download/v#{version}/droidtether-darwin-amd64.tar.gz"
+      url "https://github.com/HelloPrincePal/DroidTether/releases/download/v#{version}/droidtether-darwin-amd64.tar.gz"
       sha256 "REPLACE_WITH_ACTUAL_SHA256_AFTER_RELEASE"
     end
   
@@ -61,7 +61,7 @@ class DroidTether < Formula
           sudo launchctl unload /Library/LaunchDaemons/com.princePal.droidtether.plist
           sudo launchctl load /Library/LaunchDaemons/com.princePal.droidtether.plist
   
-        GitHub: https://github.com/princePal/droidtether
+        GitHub: https://github.com/HelloPrincePal/DroidTether
       EOS
     end
   
@@ -112,7 +112,7 @@ class DroidTether < Formula
       # Embedded minimal default config (full reference: repo config/default.toml)
       <<~TOML
         # DroidTether config — edit as needed
-        # Full reference: https://github.com/princePal/droidtether/blob/main/config/default.toml
+        # Full reference: https://github.com/HelloPrincePal/DroidTether/blob/main/config/default.toml
   
         [usb]
         poll_interval_ms = 500
