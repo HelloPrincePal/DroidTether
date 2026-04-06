@@ -19,14 +19,25 @@ DroidTether is a lightweight userspace daemon that brings high-performance USB t
 
 ---
 
-## 🛡️ Transparency & Privacy
-DroidTether is built on a "local-only" model.
-- 📂 **100% Open Source**: Every line of code is available for audit in this repository.
-- 🚫 **No Telemetry**: No tracking, no analytics, and no "call-home" features. 
-- 🔒 **Local Connectivity**: All networking happens strictly between your Mac and your Android device. No external servers are involved in the packet relay process.
-- 🕵️ **Log Privacy**: Logs reside only on your local machine at `/var/log/droidtether.log` for debugging purposes.
+## 🛡️ Security & Privacy Posture
 
-> 📝 **Audit Note**: The entire core logic of DroidTether is contained in less than **2,000 lines of Go code**, making it exceptionally easy to audit for security and transparency. We believe in simplicity and clear source code as the ultimate form of trust.
+DroidTether is built on a strict **"local-only"** and **"least-privilege"** security model. We understand that system-level network applications require a high degree of trust, which is why we enforce extreme transparency.
+
+### 🚫 Zero Telemetry & Data Sovereignty
+- **No Data Inspection**: DroidTether simply routes encrypted and unencrypted packets between the macOS kernel (`utun`) and the Android USB interface (`libusb`). It **does not** read, inspect, or modify the contents of your web traffic.
+- **No Analytics**: There is absolutely zero telemetry, tracking, or "call-home" functionality built into this daemon.
+- **Local Logs Only**: Operational logs reside strictly on your local machine at `/var/log/droidtether.log` for debugging purposes and are never transmitted anywhere.
+
+### 🔑 Why `sudo` (Root) is Required
+To function without relying on deprecated Kernel Extensions, DroidTether operates natively in userspace but requires elevated OS privileges to bind to the network stack:
+1. **Virtual Interface Creation**: Creating the `utun` network interface requires macOS kernel routing permissions.
+2. **Routing Table Modification**: Injecting routes to prioritize your Android phone's internet connection requires superuser access.
+3. **Hardware USB Binding**: Opening raw protocol communication via `libusb` requires device-level access.
+
+*Note: DroidTether performs these tasks purely in userspace without modifying System Integrity Protection (SIP) or demanding reduced security boot modes.*
+
+### 📂 100% Auditable Core
+The entire core routing logic is written in modern Go and consists of fewer than **2,000 lines of code**. We believe in simplicity and auditable code as the ultimate form of security. Review our [Security Policy](.github/SECURITY.md) for vulnerability reporting.
 
 ---
 
@@ -78,16 +89,6 @@ make build
 ```bash
 sudo ./build/droidtether
 ```
-
----
-
-## 🔑 Why `sudo` is Required?
-Because DroidTether operates at the system network level, it requires elevated privileges for specific operations:
-1. **Network Interface Management**: Creating and configuring the virtual `utun` interface on macOS is a kernel-restricted task.
-2. **Routing Table Injection**: Updating your Mac's routing table to prioritize the phone's internet connection requires superuser permissions.
-3. **Log Management**: Writing operational logs to `/var/log/droidtether.log` for system-wide transparency.
-
-*DroidTether performs these tasks purely in userspace—no persistent kernel extensions are installed.*
 
 ---
 
