@@ -145,9 +145,9 @@ func (s *Session) sendControl(data []byte) error {
 func (s *Session) receiveControl() ([]byte, error) {
 	buf := make([]byte, 2048)
 	
-	// Direct polling with generous retries for macOS
-	for i := 0; i < 10; i++ {
-		time.Sleep(10 * time.Millisecond)
+	// Direct polling with generous retries for macOS (increased for slower devices)
+	for i := 0; i < 50; i++ {
+		time.Sleep(20 * time.Millisecond)
 		n, err := s.dev.Control(0xA1, 0x01, 0, uint16(s.dev.InterfaceNum), buf)
 		if err == nil && n > 0 {
 			return buf[:n], nil

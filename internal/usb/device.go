@@ -16,42 +16,54 @@ type Device struct {
 
 // NewDevice opens and claims the RNDIS interface on the provided gousb.Device.
 func NewDevice(dev *gousb.Device) (*Device, error) {
-	// 1. Open device config 1
-	usbc, err := dev.Config(1)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open device config 1: %w", err)
-	}
-
-	// 2. Iterate through interfaces to find the RNDIS one.
+	var usbc *gousb.Config
 	var rndisInterfaceNum, rndisAltSettingNum int = -1, -1
-	for _, intfDesc := range usbc.Desc.Interfaces {
-		for _, altDesc := range intfDesc.AltSettings {
-			// Debug log all interfaces
-			fmt.Printf("USB DEBUG: Interface %d, Alt %d, Class 0x%02X, SubClass 0x%02X, Protocol 0x%02X, Endpoints %d\n",
-				intfDesc.Number, altDesc.Number, int(altDesc.Class), int(altDesc.SubClass), int(altDesc.Protocol), len(altDesc.Endpoints))
-			for _, ep := range altDesc.Endpoints {
-				fmt.Printf("  -> Endpoint %d, Dir %v, Type %v\n", ep.Number, ep.Direction, ep.TransferType)
-			}
 
-			if MatchRNDIS(uint16(dev.Desc.Vendor), uint16(dev.Desc.Product), uint8(altDesc.Class), uint8(altDesc.SubClass), uint8(altDesc.Protocol)) {
-				// We prefer the first RNDIS control interface we find
-				if rndisInterfaceNum == -1 {
-					rndisInterfaceNum = intfDesc.Number
-					rndisAltSettingNum = altDesc.Number
+	// 1. Iterate through all configurations to find the RNDIS one.
+	for _, cfgDesc := range dev.Desc.Configs {
+		c, err := dev.Config(cfgDesc.Number)
+		if err != nil {
+			fmt.Printf("USB DEBUG: failed to open config %d: %v\n", cfgDesc.Number, err)
+			continue
+		}
+
+		found := false
+		for _, intfDesc := range c.Desc.Interfaces {
+			for _, altDesc := range intfDesc.AltSettings {
+				// Debug log all interfaces
+				fmt.Printf("USB DEBUG: Config %d, Interface %d, Alt %d, Class 0x%02X, SubClass 0x%02X, Protocol 0x%02X, Endpoints %d\n",
+					cfgDesc.Number, intfDesc.Number, altDesc.Number, int(altDesc.Class), int(altDesc.SubClass), int(altDesc.Protocol), len(altDesc.Endpoints))
+
+				if MatchRNDIS(uint16(dev.Desc.Vendor), uint16(dev.Desc.Product), uint8(altDesc.Class), uint8(altDesc.SubClass), uint8(altDesc.Protocol)) {
+					if rndisInterfaceNum == -1 {
+						rndisInterfaceNum = intfDesc.Number
+						rndisAltSettingNum = altDesc.Number
+						usbc = c
+						found = true
+						break
+					}
 				}
 			}
+			if found {
+				break
+			}
+		}
+
+		if !found {
+			c.Close()
+		} else {
+			break
 		}
 	}
 
-	if rndisInterfaceNum == -1 {
-		usbc.Close()
-		return nil, fmt.Errorf("no RNDIS interface found on device")
+	if usbc == nil {
+		return nil, fmt.Errorf("no RNDIS interface found on any device configuration")
 	}
 
-	// 3. Set AutoDetach (detaches macOS built-in driver automatically).
+	// 2. Set AutoDetach (detaches macOS built-in driver automatically).
 	dev.SetAutoDetach(true)
 
-	// 4. Claim the control interface.
+	// 3. Claim the control interface.
 	intf, err := usbc.Interface(rndisInterfaceNum, rndisAltSettingNum)
 	if err != nil {
 		usbc.Close()

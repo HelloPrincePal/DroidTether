@@ -10,6 +10,11 @@ v1.0.0 = MVP complete and working on M1/M2/M3.
 
 ---
 
+## v0.8.4 — 2026-04-12
+- Milestone: Multi-Vendor Compatibility (Xiaomi HyperOS Special)
+- What works: Added support for **Xiaomi HyperOS (Android 14)** by expanding RNDIS class matching to include `0xEF` (Miscellaneous) and enabling multi-configuration USB scanning. Fixed RNDIS handshake timeouts for high-performance devices. Verified stable concurrent support for both **Samsung (One UI 8.0)** and **Xiaomi (HyperOS 2.0)**.
+- Next: Implement internal DNS interception and ICMPv6 reject responder to solve macOS "Offline" errors in high-level services like `brew`.
+
 ## v0.8.3 — 2026-03-29
 - Milestone: Transparency & Verification (The "Trust" Release)
 - What works: Added `.github/SECURITY.md` for private vulnerability reports. Enhanced `README.md` and `PRIVACY.md` with sections on **Why sudo is required**, **Audit Notes** (~2k lines of Go), and **Local-only connectivity**. Verified commit signing via SSH is now active.

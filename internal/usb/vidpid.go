@@ -45,19 +45,24 @@ var knownAndroidManufacturers = []string{
 // It returns true if the class/subclass/protocol match the RNDIS spec, or as a fallback, if the device matches
 // a known Android manufacturer VID.
 func MatchRNDIS(vid, pid uint16, class, subClass, proto uint8) bool {
-	// Primary check: Does the interface explicitly declare itself as RNDIS?
-	if class == RNDISClass && subClass == RNDISSubClass && proto == RNDISProtocol {
+	// 1. Standard RNDIS signatures
+	// - 0xE0/0x01/0x03: Standard RNDIS
+	// - 0xEF/0x04/0x01: Microsoft/ActiveSync RNDIS (common on modern Android)
+	// - 0xEF/0x02/0x01: Generic IAD (often contains RNDIS)
+	if (class == RNDISClass && subClass == RNDISSubClass && proto == RNDISProtocol) ||
+		(class == 0xEF && subClass == 0x04 && proto == 0x01) ||
+		(class == 0xEF && subClass == 0x02 && proto == 0x01) {
 		return true
 	}
 
-	// Secondary check: If the interface is vendor-specific (0xFF), see if the VID belongs to a known Android maker.
-	// Many Android devices incorrectly set their RNDIS interfaces to Class 0xFF (Vendor Specific).
-	if class == 0xFF {
-		// Some vendors use protocol 0x03 even with vendor-specific class for RNDIS.
+	// 2. Vendor-specific fallback (0xFF or 0xEF)
+	// Many vendors (Xiaomi, Samsung) use 0xFF or 0xEF class for various USB modes.
+	if class == 0xFF || class == 0xEF {
+		// Protocol 0x03 often identifies RNDIS even in vendor-specific class
 		if proto == RNDISProtocol {
 			return true
 		}
-		// Fallback for known VIDs if the protocol is also customized.
+		// Fallback for known Android manufacturers
 		for _, knownVID := range knownAndroidVIDs {
 			if vid == knownVID {
 				return true

@@ -14,6 +14,16 @@ Format:
 
 ---
 
+## v0.8.4 — 2026-04-12
+
+### 2026-04-12 20:30 — 🤖 Multi-Vendor RNDIS Support (Xiaomi + Samsung)
+- What: Expanded `MatchRNDIS` to support Class `0xEF` (Miscellaneous); implemented multi-configuration USB scanning in `NewDevice`; increased RNDIS control handshake polling to 1.0s.
+- Why: Xiaomi HyperOS (Android 14) uses non-standard class codes and often places RNDIS on Config 2/3. Faster devices need more time to initialize RNDIS during hotplugging.
+- Files: `internal/usb/vidpid.go`, `internal/usb/device.go`, `internal/rndis/rndis.go`, `VERSIONS.md`, `CHANGELOG.md`
+- Breaking: no ✅
+
+---
+
 ## v0.8.2 — 2026-03-28
 
 ### 2026-03-28 22:05 — 🛠️ Installation Robustness and Code Refactor
