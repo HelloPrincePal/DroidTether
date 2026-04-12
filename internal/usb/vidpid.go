@@ -50,14 +50,14 @@ func MatchRNDIS(vid, pid uint16, class, subClass, proto uint8) bool {
 		return true
 	}
 
-	// Secondary check: If the interface is vendor-specific (0xFF), see if the VID belongs to a known Android maker.
-	// Many Android devices incorrectly set their RNDIS interfaces to Class 0xFF (Vendor Specific).
-	if class == 0xFF {
-		// Some vendors use protocol 0x03 even with vendor-specific class for RNDIS.
+	// 2. Vendor-specific fallback (0xFF or 0xEF)
+	// Many vendors (Xiaomi, Samsung) use 0xFF or 0xEF class for various USB modes.
+	if class == 0xFF || class == 0xEF {
+		// Protocol 0x03 often identifies RNDIS even in vendor-specific class
 		if proto == RNDISProtocol {
 			return true
 		}
-		// Fallback for known VIDs if the protocol is also customized.
+		// Fallback for known Android manufacturers (Samsung, Xiaomi, etc.)
 		for _, knownVID := range knownAndroidVIDs {
 			if vid == knownVID {
 				return true

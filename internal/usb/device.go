@@ -2,6 +2,7 @@ package usb
 
 import (
 	"fmt"
+	"time"
 	"github.com/google/gousb"
 )
 
@@ -16,54 +17,86 @@ type Device struct {
 
 // NewDevice opens and claims the RNDIS interface on the provided gousb.Device.
 func NewDevice(dev *gousb.Device) (*Device, error) {
-	// 1. Open device config 1
-	usbc, err := dev.Config(1)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open device config 1: %w", err)
-	}
+	var targetConfigNum, targetInterfaceNum, targetAltSettingNum int = -1, -1, -1
 
-	// 2. Iterate through interfaces to find the RNDIS one.
-	var rndisInterfaceNum, rndisAltSettingNum int = -1, -1
-	for _, intfDesc := range usbc.Desc.Interfaces {
-		for _, altDesc := range intfDesc.AltSettings {
-			// Debug log all interfaces
-			fmt.Printf("USB DEBUG: Interface %d, Alt %d, Class 0x%02X, SubClass 0x%02X, Protocol 0x%02X, Endpoints %d\n",
-				intfDesc.Number, altDesc.Number, int(altDesc.Class), int(altDesc.SubClass), int(altDesc.Protocol), len(altDesc.Endpoints))
-			for _, ep := range altDesc.Endpoints {
-				fmt.Printf("  -> Endpoint %d, Dir %v, Type %v\n", ep.Number, ep.Direction, ep.TransferType)
-			}
-
-			if MatchRNDIS(uint16(dev.Desc.Vendor), uint16(dev.Desc.Product), uint8(altDesc.Class), uint8(altDesc.SubClass), uint8(altDesc.Protocol)) {
-				// We prefer the first RNDIS control interface we find
-				if rndisInterfaceNum == -1 {
-					rndisInterfaceNum = intfDesc.Number
-					rndisAltSettingNum = altDesc.Number
+	// 1. Scan all configuration descriptors to find the best RNDIS candidate.
+	// We do this BEFORE calling dev.Config() to avoid unnecessary SET_CONFIGURATION requests.
+	for _, cfgDesc := range dev.Desc.Configs {
+		foundInConfig := false
+		for _, intfDesc := range cfgDesc.Interfaces {
+			for _, altDesc := range intfDesc.AltSettings {
+				if MatchRNDIS(uint16(dev.Desc.Vendor), uint16(dev.Desc.Product), uint8(altDesc.Class), uint8(altDesc.SubClass), uint8(altDesc.Protocol)) {
+					// Prioritize standard RNDIS class over vendor-specific if multiple found
+					if targetConfigNum == -1 || uint8(altDesc.Class) == RNDISClass {
+						targetConfigNum = cfgDesc.Number
+						targetInterfaceNum = intfDesc.Number
+						targetAltSettingNum = altDesc.Number
+						foundInConfig = true
+					}
 				}
 			}
 		}
+		if foundInConfig {
+			break
+		}
 	}
 
-	if rndisInterfaceNum == -1 {
-		usbc.Close()
-		return nil, fmt.Errorf("no RNDIS interface found on device")
+	if targetConfigNum == -1 {
+		return nil, fmt.Errorf("no RNDIS interface found on any device configuration")
 	}
 
-	// 3. Set AutoDetach (detaches macOS built-in driver automatically).
+	// 2. Set AutoDetach (detaches macOS built-in driver automatically).
 	dev.SetAutoDetach(true)
 
-	// 4. Claim the control interface.
-	intf, err := usbc.Interface(rndisInterfaceNum, rndisAltSettingNum)
+	// 3. Open the selected configuration.
+	usbc, err := dev.Config(targetConfigNum)
 	if err != nil {
-		usbc.Close()
-		return nil, fmt.Errorf("failed to claim RNDIS interface %d: %w", rndisInterfaceNum, err)
+		return nil, fmt.Errorf("failed to open device config %d: %w", targetConfigNum, err)
 	}
 
-	return &Device{
+	// Wait for the device to stabilize after SET_CONFIGURATION (critical for Samsung)
+	time.Sleep(250 * time.Millisecond)
+
+	// 4. Claim the control interface.
+	intf, err := usbc.Interface(targetInterfaceNum, targetAltSettingNum)
+	if err != nil {
+		usbc.Close()
+		return nil, fmt.Errorf("failed to claim RNDIS control interface %d: %w", targetInterfaceNum, err)
+	}
+
+	d := &Device{
 		usbd:         dev,
 		usbc:         usbc,
 		controlIntf:  intf,
-		InterfaceNum: rndisInterfaceNum,
-	}, nil
+		InterfaceNum: targetInterfaceNum,
+	}
+
+	// 5. Proactively find and claim the Data interface.
+	// Many devices (Samsung) require the data interface to be claimed before the RNDIS handshake finishes.
+	for _, intfDesc := range usbc.Desc.Interfaces {
+		if intfDesc.Number == targetInterfaceNum {
+			continue
+		}
+		for _, alt := range intfDesc.AltSettings {
+			// Search for RNDIS Data (Class 0x0A) or general vendor-specific data
+			class := uint8(alt.Class)
+			if class == 0x0A || class == 0xFF || class == 0xEF {
+				if len(alt.Endpoints) >= 2 {
+					fmt.Printf("USB DEBUG: Proactively claiming Data Intf %d Alt %d\n", intfDesc.Number, alt.Number)
+					dataIntf, err := usbc.Interface(intfDesc.Number, alt.Number)
+					if err == nil {
+						d.dataIntf = dataIntf
+						break
+					}
+				}
+			}
+		}
+		if d.dataIntf != nil {
+			break
+		}
+	}
+
+	return d, nil
 }
 
 // Close releases the claimed USB interfaces and config configuration.

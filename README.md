@@ -45,6 +45,7 @@ The entire core routing logic is written in modern Go and consists of fewer than
 
 | Phone Name | Android Version | Host Name | OS Version | Results |
 | :--- | :--- | :--- | :--- | :--- |
+| Xiaomi 11 Lite NE | 14 (HyperOS 2.0) | MacBook Air M4 | macOS Tahoe | **260 Mbps** 🚀 |
 | Samsung Galaxy S24 | 16 (One UI 8.0) | MacBook Air M4 | macOS Tahoe | **290 Mbps** 🚀 |
 | Samsung Galaxy A55 | 16 (One UI 8.0) | MacBook Air M4 | macOS Tahoe | Stable ✅ |
 

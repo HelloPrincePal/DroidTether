@@ -1,4 +1,4 @@
-# DroidTether — Version Log
+# DroidTether — Version 0.8.5
 
 One entry per git push. Semantic versioning (MAJOR.MINOR.PATCH).
 - PATCH: bug fix, refactor, docs
@@ -10,7 +10,16 @@ v1.0.0 = MVP complete and working on M1/M2/M3.
 
 ---
 
-## v0.8.3 — 2026-03-29
+## v0.8.5 — 2026-04-12
+- Milestone: Multi-Vendor Stability (The "Recovery" Release)
+- What works: Successfully unified support for **Samsung (One UI 8.0)** and **Xiaomi (HyperOS 2.0)**. 
+- Technical Narrative: After the v0.8.4 regression (see below), we performed a "dirty" manual revert to the stable v0.8.3 baseline (`65aa959`) to isolate hardware behavior. We discovered that Samsung devices require a precise 250ms "Stabilization Sleep" after `SET_CONFIGURATION` and proactive claiming of the Data interface *before* the RNDIS handshake finishes. This version combines the Xiaomi multi-config scanning with these new Samsung-specific stability fixes.
+- Next: DNS Interception and IPv6 "Fast Fail-over" (ICMPv6 Reject).
+
+## v0.8.4 — 2026-04-12 (EXTRACTED/DEPRECATED)
+- Milestone: Multi-Vendor Compatibility (First Attempt)
+- Status: **REGRESSION DETECTED.**
+- Issue: This version successfully added Xiaomi HyperOS support but broke Samsung devices on Apple Silicon. The aggressive configuration switching caused a race condition where Samsung devices reported "Alternate Setting 1 not found" for Interface 1, even though the setting was physically present in the descriptor. The build was abandoned in favor of the more robust v0.8.5.
 - Milestone: Transparency & Verification (The "Trust" Release)
 - What works: Added `.github/SECURITY.md` for private vulnerability reports. Enhanced `README.md` and `PRIVACY.md` with sections on **Why sudo is required**, **Audit Notes** (~2k lines of Go), and **Local-only connectivity**. Verified commit signing via SSH is now active.
 - Next: Finalize Homebrew Formula logic for `brew install` support.

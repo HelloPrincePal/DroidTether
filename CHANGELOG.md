@@ -14,6 +14,29 @@ Format:
 
 ---
 
+## v0.8.5 — 2026-04-12
+
+### 2026-04-12 22:25 — 💎 The "Recovery" Fix: Unified Stability
+- What: Integrated 250ms post-config sleep and proactive data interface claiming into the multi-config scanner.
+- Why: To support Xiaomi's hidden configs while preventing Samsung's "Alt Setting" race condition. Fixed the regression from v0.8.4.
+- Files: `internal/usb/device.go`, `internal/usb/vidpid.go`, `internal/rndis/rndis.go`
+- Breaking: no ✅
+
+### 2026-04-12 22:05 — 📉 Pivot: Manual Revert to v0.8.3 Baseline (`65aa959`)
+- What: Discarded experimental v0.8.4 changes to confirm Samsung hardware was still functional.
+- Why: Samsung connectivity was lost during Xiaomi testing. Reverting allowed us to identify that the issue was timing-based (latency in interface activation) rather than logic-based.
+- Files: `internal/usb/device.go`, `internal/usb/vidpid.go`
+
+## v0.8.4 — 2026-04-12 (REGRESSION)
+
+### 2026-04-12 21:30 — 🛠️ Initial Xiaomi HyperOS Support
+- What: Added `0xEF` class matching and multi-config scanning.
+- Why: Support Xiaomi phones that move RNDIS to non-primary configurations.
+- Files: `internal/usb/vidpid.go`, `internal/usb/device.go`
+- Status: Broken for Samsung (Regression) ❌
+
+---
+
 ## v0.8.2 — 2026-03-28
 
 ### 2026-03-28 22:05 — 🛠️ Installation Robustness and Code Refactor
