@@ -176,7 +176,20 @@ session_id  — UUID per phone session
 event       — attach | detach | handshake_ok | ip_assigned | relay_error | etc.
 ```
 
-Set `format = "json"` in config for machine-readable logs (useful for log aggregators).
+## macOS 15+ Networking & DNS Boundary
+
+Modern macOS versions (15.0 Tahoe and later) have introduced a strict "System Trust" model for virtual interfaces. This has several architectural implications:
+
+### 1. Supplemental vs Authoritative DNS
+DroidTether implements a **Supplemental DNS** model. 
+*   **How it works**: We register our DNS servers (usually the phone's gateway) under `State:/Network/Service/droidtether/DNS`.
+*   **The Limitation**: macOS 15 only promotes a virtual interface to "Authoritative" (System-wide) if it meets specific hardware-equivalent trust criteria. Without a signed System Extension, macOS will prioritize hardware resolvers (Wi-Fi/Ethernet) for system-level tools like `Safari` or `curl`.
+*   **The Pragmatic Choice**: We choose transparency over complex interception (like AAAA hijacking) to ensure maximum stability and zero-trust security.
+
+### 2. TCP/IP Passthrough
+DroidTether performs zero modification to the IP payload. This ensures that:
+*   **VPNs work natively**: You can run an additional VPN (WireGuard, etc.) on top of DroidTether.
+*   **End-to-End Encryption**: HTTPS and TLS traffic are untouched and unverifiable by the daemon, maintaining user privacy.
 
 ---
 

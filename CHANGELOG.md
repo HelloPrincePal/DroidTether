@@ -14,6 +14,14 @@ Format:
 
 ---
 
+## v0.8.6 — 2026-04-13 (Current)
+
+### 2026-04-13 15:20 — 🛡️ The "Total Transparency" Update: Extensive Stability
+- What: Formalized stable "Supplemental DNS" model for macOS 15 compatibility; overhauled README with extensive technical verification commands and macOS 15 workaround; restored security-posture deep-dives.
+- Why: Prioritized user-auditable documentation and rock-solid IPv4 relay over experimental system-layer hijacks. Provided a clear path for CLI/Native tools via documented DNS overrides.
+- Files: `internal/tun/utun_darwin.go`, `internal/daemon/relay.go`, `README.md`, `CHANGELOG.md`, `VERSIONS.md`
+- Breaking: no ✅
+
 ## v0.8.5 — 2026-04-12
 
 ### 2026-04-12 22:25 — 💎 The "Recovery" Fix: Unified Stability

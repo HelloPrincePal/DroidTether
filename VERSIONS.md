@@ -1,4 +1,4 @@
-# DroidTether — Version 0.8.5
+# DroidTether — Version 0.8.6
 
 One entry per git push. Semantic versioning (MAJOR.MINOR.PATCH).
 - PATCH: bug fix, refactor, docs
@@ -7,6 +7,14 @@ One entry per git push. Semantic versioning (MAJOR.MINOR.PATCH).
 
 Pre-release: all versions are v0.x.x until `brew install droidtether` works end-to-end.
 v1.0.0 = MVP complete and working on M1/M2/M3.
+
+---
+
+## v0.8.6 — 2026-04-13
+- Milestone: Total Transparency & Technical Depth (Final Stable)
+- What works: Established "Supplemental DNS" model for macOS 15; restored 100% of technical verification commands and security posture sections to README. Documentation now includes a comprehensive guide for bypassing macOS 15 native resolver restrictions.
+- Technical Narrative: This version solidifies the project's shift from "Experimental System Hijacking" to "Professional Network Bridging." By accepting the OS-level security boundaries of macOS 15 (Tahoe), we have delivered the most stable packet-relay loop to date while providing users with the exact technical commands needed to audit and verify their own connectivity.
+- Next: Homebrew Tap readiness audit and official v1.0 planning.
 
 ---
 

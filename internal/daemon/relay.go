@@ -33,7 +33,7 @@ type Relay struct {
 	// Dynamic state set after DHCP
 	mu       sync.Mutex
 	clientIP net.IP
-	
+
 	// Traffic stats
 	sentBytes uint64
 	recvBytes uint64
@@ -223,7 +223,7 @@ func (r *Relay) Start() error {
 				return
 			case <-ticker.C:
 				_, _ = r.usbOut.Write(dummyPkt)
-				
+
 				// Log traffic stats every 5s
 				r.mu.Lock()
 				s, rv := r.sentBytes, r.recvBytes

@@ -110,7 +110,7 @@ func (i *utunInterface) SetDNS(dnsServers []string) error {
 		fmt.Fprintln(stdin, "d.add SupplementalMatchOrders * 10")
 		fmt.Fprintln(stdin, "set State:/Network/Service/droidtether/DNS")
 		fmt.Fprintln(stdin, "set State:/Network/Global/DNS")
-		
+
 		// Force Global IPv4 state to 'Online' via our utun interface
 		fmt.Fprintln(stdin, "d.init")
 		fmt.Fprintf(stdin, "d.add Router %s\n", dnsServers[len(dnsServers)-1]) // use phone gateway

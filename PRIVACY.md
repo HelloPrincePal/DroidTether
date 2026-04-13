@@ -1,27 +1,32 @@
-# 🛡️ Privacy Policy
+# 🛡️ DroidTether Privacy Policy
 
-**DroidTether is built with privacy and security as core principles.**
+**Effective Date**: April 13, 2026
 
-This project is a userspace network daemon that handles local network traffic between an Android device and a macOS host. 
+DroidTether is built with a **Privacy-First** philosophy. As a system-level networking utility, we understand that we are in a position of high trust. This policy outlines our commitment to your data sovereignty and security.
 
-### 1. No Data Collection
-DroidTether **does not collect, transmit, or share** any of your personal data, browser history, or network traffic with any third-party servers. All data processing happens entirely on your local machine.
+## 1. Zero-Inspection Policy
+DroidTether operates as a transparent userspace bridge between your Android phone's USB interface (RNDIS) and your Mac's virtual tunnel (`utun`). 
+*   **No Deep Packet Inspection (DPI)**: We do not read, inspect, store, or modify the contents of the individual data packets flowing through the relay.
+*   **Encapsulation Only**: Our core logic is restricted to RNDIS/Ethernet encapsulation and decapsulation required for packet transport.
 
-### 2. Local Logging
-DroidTether logs its activity to a local file at `/var/log/droidtether.log` to help with debugging and troubleshooting. These logs remain only on your computer and are never uploaded or shared. 
+## 2. No Telemetry or Analytics
+*   **No "Call Home"**: The DroidTether daemon contains no code to contact any remote server for telemetry, crash reporting, or user analytics.
+*   **No Identity Tracking**: We do not collect your name, email, IP address, device serial numbers, or any other personally identifiable information (PII).
+*   **Offline by Default**: DroidTether does not require an internet connection to function (other than the connection provided by your phone).
 
-### 3. Network Traffic Transparency
-DroidTether operates as a Layer 3 (IP) relay. It does not inspect the contents of your packets (e.g., your passwords or credit card numbers) and respects any end-to-end encryption (HTTPS, TLS, VPN) that your applications already use.
+## 3. Local Operational Logs
+For debugging and performance monitoring, DroidTether writes limited operational logs to your local filesystem at:
+`/var/log/droidtether.log`
 
-### 4. Telemetry
-DroidTether has **no telemetry, no analytics, and no "call-home" features**. It will never connect to the internet unless you (the user) are using it to route your network traffic through your phone's connection.
+These logs contain:
+*   USB connection/disconnection events.
+*   DHCP lease assignments (Local IPs only).
+*   Traffic volume statistics (Total bytes sent/received).
 
----
+**These logs never leave your machine.** You are free to inspect or delete them at any time.
 
-### 📝 Audit & Transparency
-To ensure full trust, the entire core logic is implemented in less than **2,000 lines of Go code**. This makes it easy for any security researcher or user to audit the source code in a single afternoon. We believe transparency is the foundation of security.
+## 4. Compliance & Transparency
+DroidTether is 100% open-source. Anyone can audit our packet-handling logic in `internal/daemon/relay.go` to verify that we are adhering to this policy.
 
----
-
-### Questions?
-If you have any questions about this Privacy Policy or how DroidTether handles your data, please open an issue in the [GitHub repository](https://github.com/HelloPrincePal/DroidTether).
+## 5. Contact
+If you have security or privacy concerns, please open an issue on our GitHub repository or contact the author via LinkedIn.

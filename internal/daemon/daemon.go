@@ -49,7 +49,7 @@ func (d *Daemon) Run() error {
 		log.Info().
 			Str("component", "daemon").
 			Msg("Android RNDIS device connected!")
-		
+
 		session := rndis.NewSession(dev)
 		phoneMAC, err := session.Handshake()
 		if err != nil {
@@ -79,7 +79,7 @@ func (d *Daemon) Run() error {
 
 		relay.OnDHCP = func(gateway, client string) {
 			log.Info().Str("component", "daemon").Str("gateway", gateway).Str("client", client).Msg("🔥 DHCPOFFER Intercepted! Auto-configuring network...")
-			
+
 			mtuStr := fmt.Sprintf("%d", d.cfg.TUN.MTU)
 			if d.cfg.TUN.MTU <= 0 {
 				mtuStr = "1400" // fallback

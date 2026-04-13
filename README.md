@@ -19,25 +19,50 @@ DroidTether is a lightweight userspace daemon that brings high-performance USB t
 
 ---
 
+## 🚀 macOS 15+ (Tahoe) Compatibility Guide
+
+macOS 15 introduces a strict "System Trust" model for network interfaces. DroidTether operates within these boundaries, leading to a split-networking experience:
+
+### ✅ Works Out-of-the-Box (Independent Apps)
+Apps that use their own internal network or DNS libraries (DNS-over-HTTPS) bypass the OS "reachability" checks and work at full speed instantly:
+*   **Browsers**: Chrome, Firefox, Brave, Microsoft Edge.
+*   **Meetings**: Google Meet, Zoom, Slack, Microsoft Teams.
+*   **Streaming**: Netflix, YouTube, Spotify, Twitch.
+*   **Developer Tools**: Any connection to a raw IP address.
+
+### ⚠️ CLI & Native System Apps
+Native Apple services—such as **Safari**, the **App Store**, **Apple Music**, and native **System Updates**—as well as CLI tools (`curl`, `git`, `brew`), strictly follow the `mDNSResponder` "reachability" flag. 
+
+#### **The Solution (Native DNS Override)**
+To enable full system-wide resolution for CLI tools and Safari, run this command while DroidTether is active:
+```bash
+# Force your hardware adapter to route DNS through the tunnel
+sudo networksetup -setdnsservers Wi-Fi 8.8.8.8 8.8.4.4
+```
+*To revert back to automatic DNS when you stop using DroidTether:*
+```bash
+sudo networksetup -setdnsservers Wi-Fi empty
+```
+
+---
+
 ## 🛡️ Security & Privacy Posture
 
-DroidTether is built on a strict **"local-only"** and **"least-privilege"** security model. We understand that system-level network applications require a high degree of trust, which is why we enforce extreme transparency.
+DroidTether is built on a strict **"local-only"** and **"least-privilege"** security model. We enforce extreme transparency because system-level applications require a high degree of trust.
 
 ### 🚫 Zero Telemetry & Data Sovereignty
 - **No Data Inspection**: DroidTether simply routes encrypted and unencrypted packets between the macOS kernel (`utun`) and the Android USB interface (`libusb`). It **does not** read, inspect, or modify the contents of your web traffic.
-- **No Analytics**: There is absolutely zero telemetry, tracking, or "call-home" functionality built into this daemon.
-- **Local Logs Only**: Operational logs reside strictly on your local machine at `/var/log/droidtether.log` for debugging purposes and are never transmitted anywhere.
+- **No Analytics**: There is absolutely zero telemetry, tracking, or "call-home" functionality.
+- **Local Logs Only**: Operational logs reside strictly on your local machine at `/var/log/droidtether.log`.
 
 ### 🔑 Why `sudo` (Root) is Required
-To function without relying on deprecated Kernel Extensions, DroidTether operates natively in userspace but requires elevated OS privileges to bind to the network stack:
-1. **Virtual Interface Creation**: Creating the `utun` network interface requires macOS kernel routing permissions.
-2. **Routing Table Modification**: Injecting routes to prioritize your Android phone's internet connection requires superuser access.
+To function without relying on Kernel Extensions, DroidTether requires elevated OS privileges:
+1. **Virtual Interface Creation**: Creating the `utun` interface requires kernel routing permissions.
+2. **Routing Table Modification**: Injecting routes to prioritize the Android connection requires root.
 3. **Hardware USB Binding**: Opening raw protocol communication via `libusb` requires device-level access.
 
-*Note: DroidTether performs these tasks purely in userspace without modifying System Integrity Protection (SIP) or demanding reduced security boot modes.*
-
 ### 📂 100% Auditable Core
-The entire core routing logic is written in modern Go and consists of fewer than **2,000 lines of code**. We believe in simplicity and auditable code as the ultimate form of security. Review our [Security Policy](.github/SECURITY.md) for vulnerability reporting.
+The core routing logic is written in modern Go and consists of fewer than **2,000 lines of code**, making it trivially auditable. Review our [Architecture Deep-Dive](docs/architecture.md) for more.
 
 ---
 
@@ -49,45 +74,22 @@ The entire core routing logic is written in modern Go and consists of fewer than
 | Samsung Galaxy S24 | 16 (One UI 8.0) | MacBook Air M4 | macOS Tahoe | **290 Mbps** 🚀 |
 | Samsung Galaxy A55 | 16 (One UI 8.0) | MacBook Air M4 | macOS Tahoe | Stable ✅ |
 
-*Verified with full bidirectional traffic and global DNS resolution.*
-
 ---
 
-## 🚀 Quick Install (Apple Silicon only)
+## 📦 Installation & Setup
 
-Open your terminal and paste this one-liner to install DroidTether and start the background service:
-
+### 1. One-Liner Install
+Open your terminal and paste this command to install the binary and start the background service:
 ```bash
 curl -sL https://raw.githubusercontent.com/HelloPrincePal/DroidTether/main/install.sh | bash
 ```
 
-### 🗑️ Uninstall
-To completely remove DroidTether, its configuration, and the background service:
-
+### 2. Manual Build (From Source)
 ```bash
-curl -sL https://raw.githubusercontent.com/HelloPrincePal/DroidTether/main/uninstall.sh | bash
-```
-
----
-
-## 🏗️ Developer Build (Source)
-
-If you prefer to build from source:
-
-### 1. Prerequisites
-Ensure you have the following installed:
-- [Go](https://go.dev/dl/) (1.21+)
-- `libusb` and `pkg-config` (Install via `brew install libusb pkg-config`)
-
-### 2. Build from Source
-```bash
+# Prerequisites: brew install libusb pkg-config
 git clone https://github.com/HelloPrincePal/DroidTether
 cd DroidTether
 make build
-```
-
-### 3. Run Manually
-```bash
 sudo ./build/droidtether
 ```
 
@@ -97,86 +99,46 @@ sudo ./build/droidtether
 
 1. **Connect** your Android phone to your Mac via a USB-C cable.
 2. **Enable Tethering** on your phone:
-   - Go to **Settings** ⚙️
-   - Search for **Tethering**
+   - Go to **Settings** ⚙️ → Search for **Tethering**
    - Toggle **USB Tethering** to **ON** ✅
-3. **Enjoy!** DroidTether will log `✨ Network auto-configured!`. Your Mac is now using your phone's internet.
+3. **Enjoy!** DroidTether will log `✨ Network auto-configured!`.
 
 ---
 
 ## 🔍 Verifying Connectivity
 
-Once DroidTether is installed and your phone is connected, you can run these commands to verify the bridge is active:
-
 ### 1. Check the Service Status ⚙️
 ```bash
 sudo launchctl list | grep princePal
-# Expected: A process ID (number) should appear, e.g., "67337  0  com.princePal.droidtether"
+# Expected: A process ID (number) should appear.
 ```
 
 ### 2. Check the Network Interface 📡
 ```bash
 ifconfig | grep -A 5 utun
-# Expected: You should see a 'utun' interface with an 'inet' address (e.g., 10.x.x.x)
+# Expected: A 'utun' interface with an 'inet' address (e.g., 10.x.x.x)
 ```
 
 ### 3. Verify the Routing 🛣️
 ```bash
 route -n get google.com | grep interface
-# Expected: interface: utunX (where X is your DroidTether interface number)
+# Expected: interface: utunX
 ```
 
 ### 4. Monitor Live Traffic 📜
 ```bash
 tail -f /var/log/droidtether.log
-# Expected: "🚀 Traffic Monitor" logs showing received/sent data totals.
-```
-
-### 5. Performance & Quality Test ⚡
-```bash
-ping -c 10 8.8.8.8
-# Expected: 0% packet loss and stable round-trip times.
-# Note: If latency is high, try switching your phone from 5G to 4G/LTE for better stability.
-```
-
----
-
-## 🛑 Stopping & Uninstalling
-
-### Stop the Background Service
-If you want to stop the service momentarily without uninstalling:
-```bash
-sudo launchctl bootout system /Library/LaunchDaemons/com.princePal.droidtether.plist
-```
-
-### Complete Uninstall
-To completely remove DroidTether, its configuration, and the background service:
-```bash
-curl -sL https://raw.githubusercontent.com/HelloPrincePal/DroidTether/main/uninstall.sh | bash
 ```
 
 ---
 
 ## ⚠️ A Note on Apple's `networkQuality`
 
-If you try to run the `networkQuality` command while using DroidTether, you may encounter an "offline" error. This is a known macOS behavior where high-level system utilities sometimes only bind to physical hardware services (WiFi/Ethernet).
-
-**Don't worry!** Real-world high-performance tasks like **Gaming, 4K Streaming, and Video Calling** use the underlying data plane and are **completely unaffected**. For accurate benchmarks, we recommend using `ping 8.8.8.8` or [fast.com](https://fast.com) in your browser.
+If you try to run the `networkQuality` command, you may encounter an "offline" error. This is known macOS behavior where high-level system utilities sometimes only bind to physical hardware services (WiFi/Ethernet). Real-world tasks like Gaming and Video Calling are **completely unaffected**.
 
 ---
 
-## 👤 Connect with the Author
-
-Feel free to reach out or follow the project’s journey! 🚀
-
-🔗 **LinkedIn**: [Prince Pal](https://www.linkedin.com/in/theprincepal/)  
-
----
-
-## 📜 License
-MIT — © PrincePal
-
-## 🤝 Contributing
-Found a bug? Have a feature request for v1.0? Please open an issue or submit a PR! 
-
-**⚠️ Security**: For security vulnerabilities, please refer to our [Security Policy](.github/SECURITY.md) for private reporting instructions.
+## 🤝 Community
+*   **Contributing**: Found a bug? Please open an issue or submit a PR! Review our [Code of Conduct](CODE_OF_CONDUCT.md).
+*   **Security**: Please report vulnerabilities via our [Security Policy](.github/SECURITY.md).
+*   **License**: MIT — © PrincePal
