@@ -30,18 +30,24 @@ Apps that use their own internal network or DNS libraries (DNS-over-HTTPS) bypas
 *   **Streaming**: Netflix, YouTube, Spotify, Twitch.
 *   **Developer Tools**: Any connection to a raw IP address.
 
-### ⚠️ CLI & Native System Apps
-Native Apple services—such as **Safari**, the **App Store**, **Apple Music**, and native **System Updates**—as well as CLI tools (`curl`, `git`, `brew`), strictly follow the `mDNSResponder` "reachability" flag. 
+### ⚠️ Safari, Chrome, and App Store Not Loading? (The macOS "Offline" Bug)
+macOS uses a `NetworkReachability` API that tells web browsers if the system is online. Because DroidTether uses a virtual `utun` interface, macOS might incorrectly tell your browsers that the system is "offline", causing them to spin endlessly even if your terminal can ping the internet.
 
-#### **The Solution (Native DNS Override)**
-To enable full system-wide resolution for CLI tools and Safari, run this command while DroidTether is active:
+#### **The Solution (Dummy Wi-Fi Connection)**
+To trick macOS into waking up the browsers, simply **turn on your Mac's Wi-Fi**. It doesn't need to have actual internet access (you can connect it to the same mobile hotspot or a router with no internet). As long as the Wi-Fi is active, macOS will report the system as "Online", and your browsers will instantly route all traffic through the high-speed USB cable.
+
+#### **Native DNS Override (For CLI & App Store)**
+If Safari or CLI tools like `curl` still fail to resolve domains, force your DNS to route through the tunnel:
 ```bash
-# Force your hardware adapter to route DNS through the tunnel
 sudo networksetup -setdnsservers Wi-Fi 8.8.8.8 8.8.4.4
 ```
-*To revert back to automatic DNS when you stop using DroidTether:*
+*(To revert when done: `sudo networksetup -setdnsservers Wi-Fi empty`)*
+
+### ⚠️ Pages Hanging or Spinning Forever? (The MTU Black Hole)
+If you can ping `8.8.8.8` but websites fail to load, your mobile carrier might be dropping packets that are too large (a common 5G tethering issue). You can fix this by lowering the interface MTU to 1380:
 ```bash
-sudo networksetup -setdnsservers Wi-Fi empty
+# Find your utun number first via 'ifconfig' (e.g. utun6)
+sudo ifconfig utun6 mtu 1380
 ```
 
 ---

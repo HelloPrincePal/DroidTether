@@ -1,7 +1,7 @@
 class DroidTether < Formula
     desc "Android USB tethering for Apple Silicon Macs — no kext, no SIP changes"
     homepage "https://github.com/princePal/droidtether"
-    version "0.8.6"
+    version "0.8.7"
   
     # ARM binary (Apple Silicon — M1/M2/M3/M4)
     on_arm do

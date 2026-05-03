@@ -14,7 +14,17 @@ Format:
 
 ---
 
-## v0.8.6 — 2026-04-13 (Current)
+## v0.8.7 — 2026-05-04 (Current)
+
+### 2026-05-04 18:30 — 🌐 Reachability API Bypass & MTU Fix
+- What: Documented macOS 15 `NetworkReachability` "offline" bug requiring a dummy Wi-Fi connection, and added `mtu 1380` troubleshooting step for MTU blackholes.
+- Why: Browsers like Chrome were refusing to route traffic despite the tunnel working perfectly, and large packets were dropping on 5G.
+- Files: `README.md`, `VERSIONS.md`, `CHANGELOG.md`
+- Breaking: no ✅
+
+---
+
+## v0.8.6 — 2026-04-13
 
 ### 2026-04-13 15:20 — 🛡️ The "Total Transparency" Update: Extensive Stability
 - What: Formalized stable "Supplemental DNS" model for macOS 15 compatibility; overhauled README with extensive technical verification commands and macOS 15 workaround; restored security-posture deep-dives.

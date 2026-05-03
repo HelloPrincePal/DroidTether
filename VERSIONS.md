@@ -10,6 +10,13 @@ v1.0.0 = MVP complete and working on M1/M2/M3.
 
 ---
 
+## v0.8.7 — 2026-05-04
+- Milestone: Reachability API Bypass & MTU Blackhole Fix
+- What works: Documented and identified the macOS 15 `NetworkReachability` API bug which marks `utun` interfaces as offline causing browsers to hang. Instructed users to keep a dummy Wi-Fi connection active. Also added the `mtu 1380` fix for the MTU black hole problem common on 5G tethering.
+- Next: Build these fixes directly into the daemon (`daemon.go`) or the launchd script.
+
+---
+
 ## v0.8.6 — 2026-04-13
 - Milestone: Total Transparency & Technical Depth (Final Stable)
 - What works: Established "Supplemental DNS" model for macOS 15; restored 100% of technical verification commands and security posture sections to README. Documentation now includes a comprehensive guide for bypassing macOS 15 native resolver restrictions.
