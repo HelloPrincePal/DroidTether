@@ -30,6 +30,10 @@ type Relay struct {
 	phoneMAC []byte
 	OnDHCP   func(gateway, client string)
 
+	// wg tracks the USB-facing worker goroutines so Stop can wait for them
+	// before the device handle is released.
+	wg sync.WaitGroup
+
 	// Dynamic state set after DHCP
 	mu       sync.Mutex
 	clientIP net.IP
@@ -61,15 +65,6 @@ func NewRelay(ctx context.Context, dev *usb.Device, tun tun.Interface, phoneMAC 
 // Start spawns the relay goroutines and blocks until context is cancelled or an error occurs.
 func (r *Relay) Start() error {
 	errChan := make(chan error, 3)
-
-	// Break blocking reads when context is cancelled (Shutdown)
-	go func() {
-		<-r.ctx.Done()
-		// Force close device interfaces to break syscall.Read/usbIn.Read
-		if r.dev != nil {
-			_ = r.dev.Close()
-		}
-	}()
 
 	// Mac -> Phone (Tunnel -> USB)
 	go func() {
@@ -116,8 +111,11 @@ func (r *Relay) Start() error {
 
 				// Wrap in RNDIS and send
 				pkt := rndis.EncapsulatePacket(eth)
-				_, err = r.usbOut.Write(pkt)
+				_, err = r.usbOut.WriteContext(r.ctx, pkt)
 				if err != nil {
+					if r.ctx.Err() != nil {
+						return
+					}
 					errChan <- fmt.Errorf("relay: usb write error: %w", err)
 					return
 				}
@@ -130,7 +128,9 @@ func (r *Relay) Start() error {
 	}()
 
 	// Phone -> Mac (USB -> Tunnel)
+	r.wg.Add(1)
 	go func() {
+		defer r.wg.Done()
 		buf := make([]byte, 16384)
 		usbErrors := 0
 		for {
@@ -138,8 +138,17 @@ func (r *Relay) Start() error {
 			case <-r.ctx.Done():
 				return
 			default:
-				n, err := r.usbIn.Read(buf)
+				n, err := r.usbIn.ReadContext(r.ctx, buf)
 				if err != nil {
+					if r.ctx.Err() != nil {
+						return
+					}
+					// Permanent errors mean the phone is gone; exit so the
+					// watcher can re-attach when it comes back.
+					if err == gousb.ErrorNoDevice || err == gousb.ErrorNotFound || err == gousb.TransferNoDevice {
+						errChan <- fmt.Errorf("relay: USB device disconnected: %w", err)
+						return
+					}
 					usbErrors++
 					if usbErrors <= 5 || usbErrors%100 == 0 {
 						log.Warn().Str("component", "relay").Err(err).Int("count", usbErrors).Msg("USB IN read error (retrying)")
@@ -203,7 +212,9 @@ func (r *Relay) Start() error {
 	}()
 
 	// DHCP + KeepAlive goroutine
+	r.wg.Add(1)
 	go func() {
+		defer r.wg.Done()
 		ticker := time.NewTicker(4 * time.Second)
 		defer ticker.Stop()
 
@@ -215,14 +226,14 @@ func (r *Relay) Start() error {
 		time.Sleep(500 * time.Millisecond)
 		dhcpPkt := r.buildDHCPDiscover()
 		log.Info().Str("component", "relay").Msg("Sending DHCP Discover...")
-		_, _ = r.usbOut.Write(rndis.EncapsulatePacket(dhcpPkt))
+		_, _ = r.usbOut.WriteContext(r.ctx, rndis.EncapsulatePacket(dhcpPkt))
 
 		for {
 			select {
 			case <-r.ctx.Done():
 				return
 			case <-ticker.C:
-				_, _ = r.usbOut.Write(dummyPkt)
+				_, _ = r.usbOut.WriteContext(r.ctx, dummyPkt)
 
 				// Log traffic stats every 5s
 				r.mu.Lock()
@@ -535,7 +546,17 @@ func (r *Relay) inspectPacket(data []byte, direction string) {
 	log.Trace().Str("component", "relay").Str("dir", direction).Str("src", src).Str("dst", dst).Msg("packet")
 }
 
-// Stop shuts down the relay.
+// Stop shuts down the relay and waits for its USB-facing worker goroutines to
+// finish, so no transfer is in flight when the device handle is released.
 func (r *Relay) Stop() {
 	r.cancel()
+	done := make(chan struct{})
+	go func() {
+		r.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+	}
 }
