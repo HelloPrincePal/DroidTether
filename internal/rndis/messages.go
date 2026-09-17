@@ -13,12 +13,12 @@ type CommonHeader struct {
 
 // RemoteNdisInitializeMsg is sent by Host -> Device to start the handshake.
 type RemoteNdisInitializeMsg struct {
-	MessageType    uint32 // MsgInit (0x02)
-	MessageLength  uint32 // 24 bytes
-	RequestID      uint32
-	MajorVersion   uint32 // 1
-	MinorVersion   uint32 // 0
-	MaxTransferSz  uint32 // Recommended: 16384 (16KB)
+	MessageType   uint32 // MsgInit (0x02)
+	MessageLength uint32 // 24 bytes
+	RequestID     uint32
+	MajorVersion  uint32 // 1
+	MinorVersion  uint32 // 0
+	MaxTransferSz uint32 // Recommended: 16384 (16KB)
 }
 
 func (m *RemoteNdisInitializeMsg) Marshal() []byte {
@@ -66,8 +66,8 @@ func UnmarshalInitializeCmplt(data []byte) (*RemoteNdisInitializeCmplt, error) {
 
 // RemoteNdisQueryMsg is sent by Host -> Device to query OIDs (e.g., getting MAC address).
 type RemoteNdisQueryMsg struct {
-	RequestID           uint32
-	OID                 uint32
+	RequestID               uint32
+	OID                     uint32
 	InformationBufferLength uint32 // for simple queries, usually 0
 }
 
@@ -77,9 +77,9 @@ func (m *RemoteNdisQueryMsg) Marshal() []byte {
 	binary.LittleEndian.PutUint32(b[4:8], 28)
 	binary.LittleEndian.PutUint32(b[8:12], m.RequestID)
 	binary.LittleEndian.PutUint32(b[12:16], m.OID)
-	binary.LittleEndian.PutUint32(b[16:20], 0) // Info Buffer Length
+	binary.LittleEndian.PutUint32(b[16:20], 0)  // Info Buffer Length
 	binary.LittleEndian.PutUint32(b[20:24], 20) // Info Buffer Offset (offset from RequestID field, which is 8 index + 12 = 20)
-	binary.LittleEndian.PutUint32(b[24:28], 0) // Device Context
+	binary.LittleEndian.PutUint32(b[24:28], 0)  // Device Context
 	return b
 }
 
@@ -148,19 +148,24 @@ func UnmarshalSetCmplt(data []byte) (uint32, uint32, error) { // returns Request
 }
 
 // EncapsulatePacket wraps a raw Ethernet packet with an RNDIS header.
+//
+// The header is the standard 44-byte REMOTE_NDIS_PACKET_MSG with a DataOffset
+// of 36, matching what the in-tree Linux host driver (rndis_host.c) sends.
+// Some Android RNDIS gadgets (e.g. vivo/MediaTek) drop frames that pad the
+// header beyond those 44 bytes and surface them as receive errors.
 func EncapsulatePacket(packet []byte) []byte {
-	headerLen := 48 // Use 48 bytes for 8-byte alignment (44 + 4 padding)
+	headerLen := 44 // Full REMOTE_NDIS_PACKET_MSG header; data starts right after it.
 	totalLen := headerLen + len(packet)
-	
+
 	b := make([]byte, totalLen)
 	binary.LittleEndian.PutUint32(b[0:4], MsgPacket)
 	binary.LittleEndian.PutUint32(b[4:8], uint32(totalLen))
-	binary.LittleEndian.PutUint32(b[8:12], 40) // DataOffset (relative to byte 8: 8 + 40 = 48)
+	binary.LittleEndian.PutUint32(b[8:12], 36) // DataOffset (relative to byte 8: 8 + 36 = 44)
 	binary.LittleEndian.PutUint32(b[12:16], uint32(len(packet)))
-	// Bytes 16-47 are reserved/optional fields (offset/length for OOB data, info, etc.)
+	// Bytes 16-43 are reserved/optional fields (offset/length for OOB data, info, etc.)
 	// We leave them zeroed.
-	
-	copy(b[48:], packet)
+
+	copy(b[44:], packet)
 	return b
 }
 
