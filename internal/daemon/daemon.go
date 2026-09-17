@@ -120,6 +120,10 @@ func (d *Daemon) Run() error {
 			} else {
 				log.Info().Str("component", "daemon").Msg("Relay session closed")
 			}
+			// Wait for the relay's USB goroutines to exit before the watcher
+			// releases the device handle, otherwise transfers can race with
+			// the close and crash inside cgo.
+			relay.Stop()
 		case <-watcher.Context().Done():
 			log.Info().Str("component", "daemon").Msg("Daemon shutting down — stopping active relay...")
 			relay.Stop()
