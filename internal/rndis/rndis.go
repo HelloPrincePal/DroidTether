@@ -26,6 +26,12 @@ func NewSession(dev *usb.Device) *Session {
 func (s *Session) Handshake() ([]byte, error) {
 	log.Info().Str("component", "rndis").Msg("Starting RNDIS handshake...")
 
+	// 0. Drain any stale encapsulated responses left on the control pipe by a
+	// previous host session. Without this the handshake can desync: the first
+	// read would consume an old completion and every subsequent read would be
+	// off by one message.
+	s.flushResponses()
+
 	// 1. Send INIT
 	s.requestID++
 	initMsg := &RemoteNdisInitializeMsg{
@@ -109,6 +115,29 @@ func (s *Session) Handshake() ([]byte, error) {
 	return macCmplt.Payload, nil
 }
 
+// ReapplyFilter re-sends OID_GEN_CURRENT_PACKET_FILTER to enable data flow.
+//
+// Some RNDIS gadgets (e.g. vivo/MediaTek) reset the packet filter to zero when
+// the data interface is re-selected with SET_INTERFACE, which makes the phone
+// silently drop all of its own broadcast traffic — DHCP offers included.
+// Re-applying the filter after the data interface has been opened restores it.
+func (s *Session) ReapplyFilter() error {
+	s.requestID++
+	setFilter := &RemoteNdisSetMsg{
+		RequestID: s.requestID,
+		OID:       OID_GEN_CURRENT_PACKET_FILTER,
+		Value:     PacketTypeDirected | PacketTypeBroadcast | PacketTypeAllMulticast,
+	}
+	if err := s.sendControl(setFilter.Marshal()); err != nil {
+		return fmt.Errorf("rndis: failed to re-apply packet filter: %w", err)
+	}
+	if _, err := s.receiveControl(); err != nil {
+		log.Warn().Str("component", "rndis").Err(err).Msg("No SET_CMPLT after re-applying packet filter")
+	}
+	log.Info().Str("component", "rndis").Msg("Packet filter re-applied after opening data interface")
+	return nil
+}
+
 // KeepAlive sends a REMOTE_NDIS_KEEPALIVE_MSG to keep the connection active.
 func (s *Session) KeepAlive() error {
 	s.requestID++
@@ -144,7 +173,7 @@ func (s *Session) sendControl(data []byte) error {
 // receiveControl retrieves an encapsulated RNDIS response.
 func (s *Session) receiveControl() ([]byte, error) {
 	buf := make([]byte, 2048)
-	
+
 	// Direct polling with generous retries for macOS (50 * 20ms = 1s total)
 	for i := 0; i < 50; i++ {
 		time.Sleep(20 * time.Millisecond)
@@ -154,4 +183,17 @@ func (s *Session) receiveControl() ([]byte, error) {
 		}
 	}
 	return nil, fmt.Errorf("rndis: timeout waiting for control response")
+}
+
+// flushResponses discards any encapsulated responses still queued on the
+// device, so the next handshake starts from a clean slate.
+func (s *Session) flushResponses() {
+	buf := make([]byte, 2048)
+	for i := 0; i < 16; i++ {
+		n, err := s.dev.Control(0xA1, 0x01, 0, uint16(s.dev.InterfaceNum), buf)
+		if err != nil || n == 0 {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }

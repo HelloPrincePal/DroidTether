@@ -46,6 +46,12 @@ func NewRelay(ctx context.Context, dev *usb.Device, tun tun.Interface, phoneMAC 
 		return nil, err
 	}
 
+	// Opening the data interface clears the RNDIS packet filter on some
+	// devices, so it has to be enabled again before data can flow.
+	if err := rndis.NewSession(dev).ReapplyFilter(); err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	return &Relay{
 		dev:      dev,

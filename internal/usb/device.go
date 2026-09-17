@@ -2,8 +2,8 @@ package usb
 
 import (
 	"fmt"
-	"time"
 	"github.com/google/gousb"
+	"time"
 )
 
 // Device wraps a gousb.Device with RNDIS specific fields and capabilities.
@@ -152,9 +152,10 @@ func (d *Device) OpenBulkEndpoints() (in *gousb.InEndpoint, out *gousb.OutEndpoi
 							continue
 						}
 					}
-					
+
 					in, out, _ = d.findEndpoints(intf)
 					if in != nil && out != nil {
+						d.prepareDataInterface(intf)
 						fmt.Printf("USB DEBUG: Found bulk endpoints on intf %d alt %d\n", intfDesc.Number, alt.Number)
 						d.dataIntf = intf
 						return in, out, nil
@@ -166,10 +167,30 @@ func (d *Device) OpenBulkEndpoints() (in *gousb.InEndpoint, out *gousb.OutEndpoi
 			}
 		}
 	} else {
+		d.prepareDataInterface(d.dataIntf)
 		return d.findEndpoints(d.dataIntf)
 	}
 
 	return nil, nil, fmt.Errorf("could not find bulk endpoint pair")
+}
+
+// prepareDataInterface makes a claimed RNDIS data interface ready for traffic:
+// select alt 0 explicitly and clear any stale endpoint halt left behind by an
+// earlier session.
+//
+// Some gadgets (e.g. vivo/MediaTek) keep their bulk endpoints disabled until
+// the host issues SET_INTERFACE, and transfers to a halted endpoint NAK until
+// they time out. Both requests are standard and harmless on other devices.
+func (d *Device) prepareDataInterface(intf *gousb.Interface) {
+	num := intf.Setting.Number
+	if _, err := d.Control(0x01, 0x0B, 0, uint16(num), nil); err != nil {
+		fmt.Printf("USB DEBUG: SET_INTERFACE(%d, 0) failed: %v\n", num, err)
+	}
+	for _, ep := range intf.Setting.Endpoints {
+		if _, err := d.Control(0x02, 0x01, 0, uint16(ep.Address), nil); err != nil {
+			fmt.Printf("USB DEBUG: CLEAR_FEATURE(halt) ep 0x%02x failed: %v\n", ep.Address, err)
+		}
+	}
 }
 
 func (d *Device) findEndpoints(intf *gousb.Interface) (*gousb.InEndpoint, *gousb.OutEndpoint, error) {
