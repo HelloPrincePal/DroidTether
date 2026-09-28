@@ -41,6 +41,10 @@ type DHCPConfig struct {
 type RouteConfig struct {
 	SetDefaultRoute bool `toml:"set_default_route"`
 	RouteMetric     int  `toml:"route_metric"`
+	// WatchdogIntervalS: how often the in-daemon config watchdog verifies that
+	// the injected route/DNS/interface config are still in place and re-applies
+	// them if macOS removed them (e.g. after standby). Default 10s when unset.
+	WatchdogIntervalS int `toml:"watchdog_interval_s"`
 }
 
 type LoggingConfig struct {
@@ -51,7 +55,7 @@ type LoggingConfig struct {
 // Default paths for DroidTether config files on macOS.
 var DefaultConfigPaths = []string{
 	"/etc/droidtether/droidtether.toml",
-	"/usr/local/etc/droidtether/droidtether.toml", // Intel Homebrew
+	"/usr/local/etc/droidtether/droidtether.toml",    // Intel Homebrew
 	"/opt/homebrew/etc/droidtether/droidtether.toml", // ARM Homebrew
 }
 

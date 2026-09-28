@@ -36,16 +36,15 @@ func (i *utunInterface) Close() error {
 	_ = exec.Command("route", "delete", "-net", "0.0.0.0/1").Run()
 	_ = exec.Command("route", "delete", "-net", "128.0.0.0/1").Run()
 
-	// Cleanup DNS we added
-	_ = exec.Command("scutil", "-w", "State:/Network/Service/droidtether/DNS").Run()
+	// Cleanup the SystemConfiguration registration and DNS we added
 	cmd := exec.Command("scutil")
 	stdin, _ := cmd.StdinPipe()
 	go func() {
 		defer stdin.Close()
 		fmt.Fprintln(stdin, "open")
+		fmt.Fprintln(stdin, "remove State:/Network/Service/droidtether/IPv4")
 		fmt.Fprintln(stdin, "remove State:/Network/Service/droidtether/DNS")
 		fmt.Fprintln(stdin, "remove State:/Network/Global/DNS")
-		fmt.Fprintln(stdin, "quit")
 	}()
 	_ = cmd.Run()
 
@@ -65,26 +64,64 @@ func (i *utunInterface) Configure(localIP, remoteIP, mtu string) error {
 	return nil
 }
 
-// SetDefaultRoute adds "more specific" default routes (0.0.0.0/1 and 128.0.0.0/1)
-// to override the existing default route without deleting it.
+// SetDefaultRoute adds "more specific" default routes (0.0.0.0/1 and
+// 128.0.0.0/1) to override the existing default route without deleting it.
+// Idempotent: a plain `route add` fails with "File exists" when the route is
+// already installed, so delete-then-add and tolerate a failed delete.
 func (i *utunInterface) SetDefaultRoute(gateway string) error {
-	// 0.0.0.0/1
-	cmd1 := exec.Command("route", "add", "-net", "0.0.0.0/1", "-interface", i.name)
-	if out, err := cmd1.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to add 0/1 route: %w (output: %s)", err, string(out))
-	}
+	_ = gateway // routes are injected by interface, not via the gateway
 
-	// 128.0.0.0/1
-	cmd2 := exec.Command("route", "add", "-net", "128.0.0.0/1", "-interface", i.name)
-	if out, err := cmd2.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to add 128/1 route: %w (output: %s)", err, string(out))
+	for _, net := range []string{"0.0.0.0/1", "128.0.0.0/1"} {
+		_ = exec.Command("route", "delete", "-net", net).Run()
+		cmd := exec.Command("route", "add", "-net", net, "-interface", i.name)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to add %s route: %w (output: %s)", net, err, string(out))
+		}
 	}
 
 	return nil
 }
 
-// SetDNS sets the system DNS to the phone gateway (or other provided servers)
-// using 'scutil' on macOS.
+// RegisterService registers DroidTether as a real SystemConfiguration
+// service by writing State:/Network/Service/droidtether/IPv4
+// (InterfaceName/Addresses/SubnetMasks/Router). configd then builds the
+// service's route list itself: a non-zero Router yields a default route,
+// which makes the service routable, so the primary election picks it and
+// the derived global DNS resolver gets the RequestA bit. Without that bit
+// mDNSResponder marks A/AAAA records "unusable" and suppresses every
+// getaddrinfo query (the post-macOS-26 tethering breakage). Android
+// tethering subnets are /24; utun is point-to-point, so the mask only
+// shapes the subnet route and never reachability.
+func (i *utunInterface) RegisterService(localIP, gateway string) error {
+	cmd := exec.Command("scutil")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return err
+	}
+	go func() {
+		defer stdin.Close()
+		fmt.Fprintln(stdin, "open")
+		fmt.Fprintln(stdin, "d.init")
+		fmt.Fprintln(stdin, "d.add InterfaceName "+i.name)
+		fmt.Fprintln(stdin, "d.add Addresses * "+localIP)
+		fmt.Fprintln(stdin, "d.add SubnetMasks * 255.255.255.0")
+		fmt.Fprintln(stdin, "d.add Router "+gateway)
+		fmt.Fprintln(stdin, "set State:/Network/Service/droidtether/IPv4")
+		fmt.Fprintln(stdin, "quit")
+	}()
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("scutil service IPv4 set failed: %w (output: %s)", err, string(out))
+	}
+	return nil
+}
+
+// SetDNS writes our nameservers into the droidtether service's DNS entity
+// (with __FLAGS__ 6 = RequestA|RequestAAAA so configd's derivation keeps the
+// RequestA bit) and clears any stale raw override of State:/Network/Global/
+// DNS. configd republishes the derived resolver once the service is routable
+// (see RegisterService). Global/DNS must never be set directly: a raw write
+// is ignored by mDNSResponder and makes configd tear down the primary
+// election, re-deriving a resolver without RequestA.
 func (i *utunInterface) SetDNS(dnsServers []string) error {
 	if len(dnsServers) == 0 {
 		return nil
@@ -108,14 +145,13 @@ func (i *utunInterface) SetDNS(dnsServers []string) error {
 		// SupplementalMatchDomains set to empty string tells macOS to use these servers for ALL lookups.
 		fmt.Fprintln(stdin, "d.add SupplementalMatchDomains * \"\"")
 		fmt.Fprintln(stdin, "d.add SupplementalMatchOrders * 10")
+		// RequestA/RequestAAAA (0x2|0x4): without them mDNSResponder treats
+		// A/AAAA records as "unusable" and suppresses every getaddrinfo
+		// query. configd ORs these into __FLAGS__ (=> 0x4006; it masks the
+		// AAAA bit back off when the interface has no IPv6).
+		fmt.Fprintln(stdin, "d.add __FLAGS__ # 6")
 		fmt.Fprintln(stdin, "set State:/Network/Service/droidtether/DNS")
-		fmt.Fprintln(stdin, "set State:/Network/Global/DNS")
-
-		// Force Global IPv4 state to 'Online' via our utun interface
-		fmt.Fprintln(stdin, "d.init")
-		fmt.Fprintf(stdin, "d.add Router %s\n", dnsServers[len(dnsServers)-1]) // use phone gateway
-		fmt.Fprintf(stdin, "d.add Interface %s\n", i.name)
-		fmt.Fprintln(stdin, "set State:/Network/Global/IPv4")
+		fmt.Fprintln(stdin, "remove State:/Network/Global/DNS")
 		fmt.Fprintln(stdin, "quit")
 	}()
 

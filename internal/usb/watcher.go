@@ -66,24 +66,30 @@ func (w *Watcher) pollLoop() {
 	ticker := time.NewTicker(w.pollInterval)
 	defer ticker.Stop()
 
+	// After a Mac sleep the phone's USB tethering function can be
+	// disabled by Android itself (VBUS drop -> tethering toggle off).
+	// The daemon then re-attaches every poll and races open/close on a
+	// device that is surprise-removed, which poisons the libusb context
+	// permanently: libusb_get_device_list then returns LIBUSB_ERROR_OTHER
+	// (-99) forever and the daemon goes deaf — it never notices the user
+	// re-enabling tethering. No in-process recovery of that context is
+	// reliable, so the scan loop tracks consecutive failures and exits
+	// the process once the context is clearly poisoned; launchd
+	// (KeepAlive, ThrottleInterval 5) restarts it with a fresh libusb
+	// context that sees the device again.
+	scanErrStreak := 0
+	const scanErrFatalAt = 10
+
 	for {
 		select {
 		case <-w.ctx.Done():
 			return
 		case <-ticker.C:
-			// If we already have a device attached, check if it's still there.
-			// Re-evaluating USB device states on macOS typically requires re-listing to clear ghosts.
 			if w.activeDeviceHandle != nil {
-				// We can simply continue polling, but an advanced implementation would verify device presence.
-				// For the sake of simplicity, we assume robust handled detach scenarios for now and skip listing.
 				continue
 			}
 
-			// Open devices listing.
 			devs, err := w.usbCtx.OpenDevices(func(desc *gousb.DeviceDesc) bool {
-				// Pre-filter: We cannot know interfaces at this stage easily in some architectures without
-				// checking configs, but we can verify class matching in MatchRNDIS.
-				// OpenDevices pre-filters using a fast check before full open.
 				for _, cfg := range desc.Configs {
 					for _, intf := range cfg.Interfaces {
 						for _, alt := range intf.AltSettings {
@@ -93,7 +99,6 @@ func (w *Watcher) pollLoop() {
 						}
 					}
 				}
-				// Test secondary strings or known vendors.
 				if MatchRNDIS(uint16(desc.Vendor), uint16(desc.Product), 0xFF, 0x00, 0x00) {
 					return true
 				}
@@ -101,23 +106,31 @@ func (w *Watcher) pollLoop() {
 			})
 
 			if err != nil {
+				scanErrStreak++
 				log.Error().
 					Str("component", "usb").
 					Err(err).
+					Int("consecutive", scanErrStreak).
 					Msg("Error scanning devices")
 				for _, d := range devs {
 					d.Close()
 				}
+				if scanErrStreak >= scanErrFatalAt {
+					log.Fatal().
+						Str("component", "usb").
+						Int("consecutive", scanErrStreak).
+						Msg("USB device-list context is poisoned; exiting for launchd restart")
+				}
 				continue
 			}
+			scanErrStreak = 0
 
 			if len(devs) > 0 {
 				log.Debug().
 					Str("component", "usb").
 					Int("candidates", len(devs)).
 					Msg("Found match, checking interface setup...")
-				candidate := devs[0] // take the first matched valid device. MVP only supports one device.
-				// Close the others quickly.
+				candidate := devs[0]
 				for i := 1; i < len(devs); i++ {
 					devs[i].Close()
 				}
@@ -136,14 +149,12 @@ func (w *Watcher) pollLoop() {
 				if w.onAttachFn != nil {
 					go func() {
 						w.onAttachFn(deviceWrapper)
-						// when the device eventually detaches or errors out...
 						if w.onDetachFn != nil {
 							log.Debug().
 								Str("component", "usb").
 								Msg("Device detached workflow triggered")
 							w.onDetachFn()
 						}
-						// Clean up handles if not already cleaned by Stop()
 						if w.activeDeviceHandle != nil {
 							w.activeDeviceHandle.Close()
 							w.activeDeviceHandle = nil

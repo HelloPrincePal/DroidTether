@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/hex"
@@ -16,6 +17,19 @@ import (
 	"github.com/princePal/droidtether/internal/usb"
 	"github.com/rs/zerolog/log"
 )
+
+// clientMAC is the source MAC we stamp on every frame we send to the phone.
+// The phone is expected to send return traffic addressed to it. It is a
+// constant (not learned) so we can recognise and drop anything that comes back
+// carrying it — see the loop guard in the phone->Mac direction.
+var clientMAC = []byte{0x02, 0x00, 0x00, 0x00, 0x00, 0x01}
+
+// macCandidate tracks a possible new phone MAC. A single packet is not enough
+// evidence: a phone attached both by USB and Wi-Fi hotspot sends frames from
+// several interfaces, and adopting the wrong one mis-addresses every frame we
+// send (see loop guard). Require macAdoptThreshold consecutive sightings from
+// the same address before switching.
+const macAdoptThreshold = 8
 
 // Relay handles the packet shuttle between USB Bulk and Tunnel interface.
 type Relay struct {
@@ -33,6 +47,12 @@ type Relay struct {
 	// Dynamic state set after DHCP
 	mu       sync.Mutex
 	clientIP net.IP
+
+	// Candidate for a phone MAC change: consecutive sightings of candMAC.
+	candMAC    []byte
+	candCount  int
+	loopDrops  uint64
+	macChanges uint64
 
 	// Traffic stats
 	sentBytes uint64
@@ -106,7 +126,7 @@ func (r *Relay) Start() error {
 				eth := make([]byte, 14+len(rawIP))
 				copy(eth[0:6], r.phoneMAC)
 				r.mu.Unlock()
-				copy(eth[6:12], []byte{0x02, 0x00, 0x00, 0x00, 0x00, 0x01})
+				copy(eth[6:12], clientMAC)
 				binary.BigEndian.PutUint16(eth[12:14], 0x0800)
 				copy(eth[14:], rawIP)
 
@@ -169,6 +189,34 @@ func (r *Relay) Start() error {
 					if msgType == rndis.MsgPacket && msgLen > 44 {
 						ethPkt, err := rndis.DecapsulatePacket(msg[:msgLen])
 						if err == nil && len(ethPkt) > 14 {
+							// Loop guard: drop anything carrying our own source
+							// MAC. Such a frame is our own outbound traffic that
+							// the phone routed back to us (it happens when the
+							// phone is also serving a Wi-Fi hotspot and the
+							// destination MAC was wrong). Injecting it again
+							// would re-enter the tunnel and amplify into a
+							// runaway loop that burned metered data at ~30 MB/s.
+							if r.isLoopFrame(ethPkt) {
+								r.mu.Lock()
+								r.loopDrops++
+								drops := r.loopDrops
+								r.mu.Unlock()
+								if drops <= 5 || drops%1000 == 0 {
+									log.Warn().Str("component", "relay").
+										Int("dropped", int(drops)).
+										Msg("Dropped reflected frame with our own source MAC (loop guard)")
+								}
+								offset += msgLen
+								continue
+							}
+
+							// DHCP is the phone's own server answering us: its
+							// source MAC is authoritative for the tethering
+							// interface, so adopt it immediately (the 8-packet
+							// threshold never sees enough DHCP frames).
+							if isDHCPResponse(ethPkt) {
+								r.adoptMAC(ethPkt[6:12])
+							}
 							// Auto-detect phone's real MAC from received traffic.
 							// Samsung devices randomize the active MAC on the tethering
 							// interface, so the RNDIS-queried address may not match.
@@ -249,21 +297,105 @@ func (r *Relay) Start() error {
 	}
 }
 
-// autoDetectMAC updates phoneMAC if the received source MAC differs (Samsung MAC randomization workaround).
+// autoDetectMAC considers a new phone MAC learned from received traffic
+// (Samsung devices randomize the active MAC on the tethering interface, so the
+// RNDIS-queried address may not match).
+//
+// Two safety rules, both learned the hard way on a phone attached as BOTH a USB
+// tether and a Wi-Fi hotspot:
+//
+//  1. Never adopt our own clientMAC. A frame echoing back with our source MAC
+//     is our own traffic being reflected, and adopting it would make us address
+//     every subsequent frame to ourselves — a self-sustaining loop that moved
+//     1.4 GB inbound against 79 KB outbound on a metered connection.
+//  2. Require macAdoptThreshold *consecutive* sightings of the same address.
+//     One packet is not evidence: a dual-attached phone emits frames from
+//     several interfaces, and a single stray frame must not re-address the
+//     whole relay.
 func (r *Relay) autoDetectMAC(srcMAC []byte) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for i := 0; i < 6; i++ {
-		if r.phoneMAC[i] != srcMAC[i] {
-			log.Warn().Str("component", "relay").
-				Str("old_mac", hex.EncodeToString(r.phoneMAC)).
-				Str("real_mac", hex.EncodeToString(srcMAC)).
-				Msg("Phone MAC mismatch detected — updating to real MAC")
-			copy(r.phoneMAC, srcMAC)
-			return
-		}
+	// Rule 1: never learn our own address.
+	if bytes.Equal(srcMAC, clientMAC) {
+		return
 	}
+
+	// Already the current MAC: nothing to do, and it cancels any candidate.
+	if bytes.Equal(srcMAC, r.phoneMAC) {
+		r.candMAC = nil
+		r.candCount = 0
+		return
+	}
+
+	// Track consecutive sightings of a candidate.
+	if !bytes.Equal(srcMAC, r.candMAC) {
+		r.candMAC = append([]byte(nil), srcMAC...)
+		r.candCount = 1
+		return
+	}
+
+	r.candCount++
+	if r.candCount < macAdoptThreshold {
+		return
+	}
+
+	old := hex.EncodeToString(r.phoneMAC)
+	new := hex.EncodeToString(srcMAC)
+	r.macChanges++
+	copy(r.phoneMAC, srcMAC)
+	r.candMAC = nil
+	r.candCount = 0
+
+	log.Warn().Str("component", "relay").
+		Str("old_mac", old).
+		Str("new_mac", new).
+		Int("confirmed_packets", macAdoptThreshold).
+		Msg("Phone MAC change confirmed — switching destination MAC")
+}
+
+// isDHCPResponse reports whether an Ethernet frame carries a UDP 67→68
+// (server-to-client) DHCP message — the offer/ack that proves the sender is
+// the phone's own tethering interface.
+func isDHCPResponse(ethPkt []byte) bool {
+	if binary.BigEndian.Uint16(ethPkt[12:14]) != 0x0800 {
+		return false
+	}
+	rawIP := ethPkt[14:]
+	if len(rawIP) < 28 || rawIP[9] != 17 {
+		return false
+	}
+	return binary.BigEndian.Uint16(rawIP[20:22]) == 67 && binary.BigEndian.Uint16(rawIP[22:24]) == 68
+}
+
+// adoptMAC unconditionally re-points the relay's destination MAC to srcMAC
+// (skipping the consecutive-sighting threshold), used only when the frame is
+// self-authenticating evidence of the phone's tethering interface.
+func (r *Relay) adoptMAC(srcMAC []byte) {
+	r.mu.Lock()
+	if bytes.Equal(srcMAC, clientMAC) || bytes.Equal(srcMAC, r.phoneMAC) {
+		r.mu.Unlock()
+		return
+	}
+	old := hex.EncodeToString(r.phoneMAC)
+	r.macChanges++
+	copy(r.phoneMAC, srcMAC)
+	r.candMAC = nil
+	r.candCount = 0
+	r.mu.Unlock()
+	log.Warn().Str("component", "relay").
+		Str("old_mac", old).
+		Str("new_mac", hex.EncodeToString(srcMAC)).
+		Msg("Adopted phone MAC from DHCP response — destination re-pointed")
+}
+
+// isLoopFrame reports whether an inbound frame is our own traffic being
+// reflected back at us, which must never be injected into the tunnel.
+func (r *Relay) isLoopFrame(ethPkt []byte) bool {
+	if len(ethPkt) < 14 {
+		return false
+	}
+	return bytes.Equal(ethPkt[6:12], clientMAC)
 }
 
 // tryExtractDHCP checks if a raw IP packet is a DHCP message and handles Offer/ACK.

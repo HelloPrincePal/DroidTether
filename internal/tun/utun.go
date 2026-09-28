@@ -10,5 +10,6 @@ type Interface interface {
 	Name() string
 	Configure(localIP, remoteIP, mtu string) error
 	SetDefaultRoute(gateway string) error
+	RegisterService(localIP, gateway string) error
 	SetDNS(dnsServers []string) error
 }
